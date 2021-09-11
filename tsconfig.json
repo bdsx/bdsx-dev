@@ -2,7 +2,8 @@
   "exclude": [
     "node_modules",
     "bdsx/bedrock_server",
-    "bdsx/addons"
+    "bdsx/addons",
+    "ken"
   ],
   "compilerOptions": {
     "target": "es2017",

@@ -4,3 +4,6 @@
 [submodule "bdsx-core"]
 	path = bdsx-core
 	url = https://github.com/bdsx/bdsx-core.git
+[submodule "ken"]
+	path = ken
+	url = https://github.com/karikera/ken.git
