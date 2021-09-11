@@ -5,8 +5,8 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "runtimeExecutable": "${workspaceFolder}/bedrock_server/bedrock_server.exe",
-            "cwd": "${workspaceFolder}/bedrock_server",
+            "runtimeExecutable": "${workspaceFolder}/bdsx/bedrock_server/bedrock_server.exe",
+            "cwd": "${workspaceFolder}/bdsx/bedrock_server",
             "type": "legacy-node",
             "request": "launch",
             "name": "Launch BDSX",
@@ -24,7 +24,8 @@
             "skipFiles": [
                 "<node_internals>/**"
             ],
-            "args": ["${workspaceFolder}/bdsx/installer/installer.js", "./bedrock_server", "-y"],
+            "cwd": "${workspaceFolder}/bdsx",
+            "args": ["${workspaceFolder}/bdsx/bdsx/installer/installer.js", "./bedrock_server", "-y"],
             "console": "integratedTerminal",
 			"preLaunchTask": "${defaultBuildTask}"
         },
@@ -35,30 +36,30 @@
             "skipFiles": [
                 "<node_internals>/**"
             ],
-            "args": ["${workspaceFolder}/bdsx/externs/bds-scripting/parser.js"],
+            "args": ["${workspaceFolder}/bds-scripting/docparser.js"],
 			"preLaunchTask": "${defaultBuildTask}"
         },
         {
-            "runtimeExecutable": "${workspaceFolder}/bedrock_server/bedrock_server.exe",
+            "runtimeExecutable": "${workspaceFolder}/bdsx/bedrock_server/bedrock_server.exe",
             "type": "legacy-node",
             "request": "launch",
             "name": "Launch Assembly Compiler",
             "skipFiles": [
                 "<node_internals>/**"
             ],
-            "args": ["${workspaceFolder}/bdsx/asm/compile.js"],
+            "args": ["${workspaceFolder}/asm/compile.js"],
             "console": "integratedTerminal",
 			"preLaunchTask": "${defaultBuildTask}"
         },
         {
-            "runtimeExecutable": "${workspaceFolder}/bedrock_server/bedrock_server.exe",
+            "runtimeExecutable": "${workspaceFolder}/bdsx/bedrock_server/bedrock_server.exe",
             "type": "legacy-node",
             "request": "launch",
             "name": "Launch Assembly Tests",
             "skipFiles": [
                 "<node_internals>/**"
             ],
-            "args": ["${workspaceFolder}/bdsx/asm/test/asmtest.js"],
+            "args": ["${workspaceFolder}/asm/test/asmtest.js"],
             "console": "integratedTerminal",
 			"preLaunchTask": "${defaultBuildTask}"
         },
@@ -69,17 +70,16 @@
             "skipFiles": [
                 "<node_internals>/**"
             ],
-            "args": ["${workspaceFolder}/bdsx/pluginmgr/index.js"],
+            "args": ["${workspaceFolder}/bdsx/bdsx/pluginmgr/index.js"],
             "console": "integratedTerminal",
 			"preLaunchTask": "${defaultBuildTask}"
         },
         {
-            "runtimeExecutable": "${workspaceFolder}/bedrock_server/bedrock_server.exe",
-            "cwd": "${workspaceFolder}/bedrock_server",
+            "runtimeExecutable": "${workspaceFolder}/bdsx/bedrock_server/bedrock_server.exe",
             "type": "legacy-node",
             "request": "launch",
             "name": "Launch PDB Parser",
-            "args": ["${workspaceFolder}/bdsx/pdbparser"],
+            "args": ["${workspaceFolder}/pdbparser"],
             "skipFiles": [
                 "<node_internals>/**"
             ],
@@ -93,7 +93,7 @@
             "skipFiles": [
                 "<node_internals>/**"
             ],
-            "args": ["${workspaceFolder}/bdsx/minecraft_impl/enumgen.js"],
+            "args": ["${workspaceFolder}/enumgen.js"],
             "console": "integratedTerminal",
 			"preLaunchTask": "${defaultBuildTask}"
         }

@@ -1,0 +1,3 @@
+[submodule "bdsx"]
+	path = bdsx
+	url = https://github.com/bdsx/bdsx.git
