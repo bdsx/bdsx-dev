@@ -1,9 +1,12 @@
 [submodule "bdsx"]
 	path = bdsx
 	url = https://github.com/bdsx/bdsx.git
+	branch = next
 [submodule "bdsx-core"]
 	path = bdsx-core
 	url = https://github.com/bdsx/bdsx-core.git
+	branch = master
 [submodule "ken"]
 	path = ken
 	url = https://github.com/karikera/ken.git
+	branch = master
