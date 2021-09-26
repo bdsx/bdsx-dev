@@ -1,2 +1,7 @@
+type_id - symbol not found
+CommandRegistry::parse - too few, it's in cache, seems parsing failed
 
-Split tools from the current git repo
+enum to extended int32_t
+
+
+bdsx api with only js

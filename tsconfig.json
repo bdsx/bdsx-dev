@@ -1,11 +1,14 @@
 {
   "exclude": [
     "node_modules",
-    "bedrock_server",
-    "addons",
-    "bdsx/pdbparser/globals"
+    "bdsx/node_modules",
+    "bdsx/bedrock_server",
+    "bdsx/addons",
+    "bdsx-core",
+    "ken"
   ],
   "compilerOptions": {
+    "outDir": "bdsx/bdsx",
     "target": "es2017",
     "lib": [ "es2017" ],
     "module": "CommonJS",
