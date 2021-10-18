@@ -20,9 +20,12 @@ jobs:
 
       - name: NPM Install 
         run: npm i
+        working-directory: bdsx-lib
 
       - name: TypeScript Check
         run: tsc --noEmit
+        working-directory: bdsx-lib
         
       - name: ESLint
         run: npm run lint-bdsx
+        working-directory: bdsx-lib

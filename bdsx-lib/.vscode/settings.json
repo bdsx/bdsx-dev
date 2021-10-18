@@ -1,0 +1,14 @@
+{
+    "files.trimTrailingWhitespace": true,
+    "[markdown]": {
+        "files.trimTrailingWhitespace": false
+    },
+    "editor.insertSpaces": true,
+    "files.exclude": {
+        "**/*.bundle.js": true,
+        "**/*.bundle.js.map": true
+    },
+    "search.exclude": {
+        "minecraft.js": true
+    }
+}

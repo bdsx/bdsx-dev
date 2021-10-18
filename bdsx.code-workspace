@@ -1,0 +1,20 @@
+{
+	"folders": [
+		{
+			"path": "bdsx"
+		},
+		{
+			"path": "bdsx-lib"
+		},
+		{
+			"path": "if-tsb"
+		}
+	],
+	"settings": {
+		"typescript.tsc.autoDetect": "off",
+		"npm.autoDetect": "off",
+		"search.exclude": {
+			"bdsx/minecraft.js": true
+		},
+	}
+}

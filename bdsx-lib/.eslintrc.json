@@ -1,0 +1,12 @@
+{
+  "ignorePatterns": ["**/*.js", "/minecraft.d.ts", "/minecraft_impl/enums.d.ts"],
+  "extends": "../bdsx/bdsx/.eslint.shared",
+  "rules": {
+      "no-restricted-imports": ["error", {
+        "patterns": [{
+          "group": ["**/v3/*"],
+          "message": "do not access the v3 internal library directly."
+        }]
+      }]
+  }
+}

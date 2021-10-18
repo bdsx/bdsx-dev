@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "typeRoots": [ "./typings" ],
+    "types": [ "node", "minecraft" ],
+    "outDir": "../bdsx/bdsx",
+    "target": "es2017",
+    "lib": [ "es2017" ],
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "alwaysStrict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "noImplicitThis": true,
+    "resolveJsonModule": true,
+    "sourceMap": true,
+    "importHelpers": true,
+    "experimentalDecorators": true,
+    "declaration": true,
+    "stripInternal": true
+  }
+}

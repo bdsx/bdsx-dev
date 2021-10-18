@@ -1,0 +1,40 @@
+{
+    "name": "bdsx-lib",
+    "version": "1.0.0",
+    "description": "bdsx library",
+    "private": true,
+    "main": "./tools/dev-entry.js",
+    "scripts": {
+        "lint-bdsx": "eslint",
+        "tsc-no-emit": "tsc --noEmit",
+        "watch": "node ./tools/bundlerun.js ./tools/build/build.ts",
+        "preinstall": "cd ../if-tsb & npm i"
+    },
+    "dependencies": {
+        "blessed": "^0.1.81",
+        "chokidar": "^2.1.8",
+        "colors": "^1.4.0",
+        "follow-redirects": "^1.14.4",
+        "globby": "^8.0.2",
+        "if-tsb": "file:../if-tsb",
+        "node-html-parser": "^4.1.5",
+        "progress": "^2.0.3",
+        "source-map": "~0.6.1",
+        "ts-node": "^10.2.1",
+        "tslib": "^2.3.1",
+        "typescript": "^4.4.3",
+        "unzipper": "^0.10.11"
+    },
+    "devDependencies": {
+        "@types/blessed": "^0.1.19",
+        "@types/follow-redirects": "^1.13.1",
+        "@types/globby": "^8.0.0",
+        "@types/node": "^12.20.28",
+        "@types/progress": "^2.0.5",
+        "@types/unzipper": "^0.10.4",
+        "eslint": "^7.32.0",
+        "eslint-plugin-github": "^4.3.0",
+        "eslint-plugin-import": "2.24.0 || ^2.24.2",
+        "eslint-plugin-unused-imports": "^1.1.5"
+    }
+}
