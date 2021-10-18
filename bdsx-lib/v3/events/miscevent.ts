@@ -3,10 +3,11 @@ import { VoidPointer } from "../../core";
 import { events } from ".";
 import { hook } from "../../hook";
 import { bedrockServer } from "../../launcher";
-import { GameType, Objective, ObjectiveCriteria, PlayerScoreSetFunction, RakNetServerLocator, Scoreboard, ScoreboardIdentityRef, serverInstance } from "../../minecraft";
+import { GameType, Objective, ObjectiveCriteria, PlayerScoreSetFunction, RakNetServerLocator, Scoreboard, ScoreboardIdentityRef } from "../../minecraft";
 import { bin64_t, bool_t, CxxString, int32_t } from "../../nativetype";
 import { Wrapper } from "../../pointer";
 import { _tickCallback } from "../../util";
+import { mcglobal } from "../../mcglobal";
 
 export class QueryRegenerateEvent {
     constructor(
@@ -27,7 +28,7 @@ events.queryRegenerate.setInstaller(()=>{
         return _onQueryRegenerate.call(this, event.motd, event.levelname, gameType, event.currentPlayers, event.maxPlayers, event.isJoinableThroughServerScreen);
     }
     const _onQueryRegenerate = hook(RakNetServerLocator, 'announceServer').call(onQueryRegenerate);
-    bedrockServer.afterOpen().then(() => serverInstance.minecraft.getServerNetworkHandler().updateServerAnnouncement());
+    bedrockServer.afterOpen().then(() => mcglobal.serverInstance.minecraft.getServerNetworkHandler().updateServerAnnouncement());
 });
 
 export class ScoreResetEvent {

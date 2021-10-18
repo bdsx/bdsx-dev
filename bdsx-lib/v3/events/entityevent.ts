@@ -31,7 +31,7 @@ export class EntityEvent {
                 return this[internalEntityKey] = entity;
             },
             set(this:any, entity:Entity):void {
-                if (entity.getRawEntity() === null) throw Error(`${entity.getName()} does not have the entity`);
+                if (entity.getRawEntity() === null) throw Error(`${entity.name} does not have the entity`);
                 this[internalEntityKey] = entity;
             }
         });
