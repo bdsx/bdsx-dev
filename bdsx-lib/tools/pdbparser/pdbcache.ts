@@ -2,11 +2,11 @@
 import path = require('path');
 import fs = require('fs');
 import { pdb } from '../../core';
-import { SYMOPT_PUBLICS_ONLY, UNDNAME_COMPLETE } from '../../dbghelp';
+import { SYMOPT_NO_PUBLICS, SYMOPT_PUBLICS_ONLY, UNDNAME_COMPLETE } from '../../dbghelp';
 import { dll } from '../../dll';
 
 const cachepath = path.join(__dirname, 'pdbcachedata.bin');
-const VERSION = 1;
+const VERSION = 3;
 const EOF = {};
 
 // corrupted
@@ -104,6 +104,23 @@ function makePdbCache():number {
             filtered.push({address, name: item});
         }
     });
+    pdb.setOptions(SYMOPT_NO_PUBLICS);
+    pdb.getAllEx(symbols=>{
+        for (const info of symbols) {
+            const item = info.name;
+            if (item.length > 2000) {
+                console.log(`[pdbcache.ts] skipped ${no}, too long (deco_length == ${item.length})`);
+                continue; // too long
+            }
+            if (item.startsWith('?')) {
+                console.log(`[pdbcache.ts] unresolved symbol: ${item}`);
+                continue;
+            }
+            const address = info.address.subptr(dll.current);
+            filtered.push({address, name: item});
+        }
+    });
+
     pdb.setOptions(old);
 
     const intv = new Int32Array(3);

@@ -283,6 +283,15 @@ export function printOnProgress(message:string):void {
     console.log();
 }
 
+export function inheritMultiple<T>(child:AbstractClass<T>, base:AbstractClass<T>):void {
+    const childp = child.prototype as any;
+    const basep = base.prototype as any;
+    for (const key of Object.getOwnPropertyNames(basep)) {
+        if ((key in childp)) continue;
+        childp[key] = basep[key];
+    }
+}
+
 export type DeferPromise<T> = Promise<T>&{resolve:(value?:T|PromiseLike<T>)=>void, reject:(reason?:any)=>void};
 export namespace DeferPromise {
     export function make<T>():DeferPromise<T> {

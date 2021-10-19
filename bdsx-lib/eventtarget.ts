@@ -2,34 +2,9 @@
 import { AnyFunction, CANCEL } from './common';
 import { remapAndPrintError } from './source-map-support';
 
-/**
- * @deprecated unusing
- */
-export interface CapsuledEvent<T extends (...args: any[]) => any> {
-    /**
-     * return true if there are no connected listeners
-     */
-    isEmpty(): boolean;
-    /**
-     * add listener
-     */
-    on(listener: T): void;
-    onFirst(listener: T): void;
-    onLast(listener: T): void;
-    /**
-     * add listener before needle
-     */
-    onBefore(listener: T, needle: T): void;
-    /**
-     * add listener after needle
-     */
-    onAfter(listener: T, needle: T): void;
-    remove(listener: T): boolean;
-}
-
 type FirstParameter<T extends AnyFunction> = T extends (...args:infer P)=>any ? 0 extends P['length'] ? void : P[0] : void;
 
-export class Event<T extends (...args: any[]) => Event.ReturnType> implements CapsuledEvent<T> {
+export class Event<T extends (...args: any[]) => Event.ReturnType> {
     private readonly listeners: T[] = [];
     private installer:(()=>void)|null = null;
     private uninstaller:(()=>void)|null = null;

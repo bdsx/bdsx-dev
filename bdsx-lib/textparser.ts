@@ -35,6 +35,11 @@ export class TextParser {
         return true;
     }
 
+    must(str:string):void {
+        if (!this.context.startsWith(str, this.i)) throw Error(`Unexpected following(${str} expected)`);
+        this.i += str.length;
+    }
+
     skipSpaces():void {
         NONSPACE.lastIndex = this.i;
         const res = NONSPACE.exec(this.context);

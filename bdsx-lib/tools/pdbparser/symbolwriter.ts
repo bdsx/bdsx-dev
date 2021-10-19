@@ -32,6 +32,7 @@ resolvePacketClasses();
 
 const outDir = path.join(__dirname, '../..');
 const COMMENT_SYMBOL = false;
+const LAMBDA_REGEXP = /^<(lambda_[a-z0-9]*)>$/;
 
 const primitiveTypes = new Set<string>();
 primitiveTypes.add('int32_t');
@@ -126,7 +127,6 @@ interface Identifier extends PdbId<PdbId.Data> {
 PdbId.filter = (item:Identifier):boolean=>{
     if (item.filted != null) return item.filted;
     item = item.decay();
-    if (item.data instanceof PdbId.LambdaClass) return item.filted = false;
     if ((item.data instanceof PdbId.FunctionBase ||
         item.data instanceof PdbId.TemplateFunctionBase ||
         item.data instanceof PdbId.Function ||
@@ -402,8 +402,8 @@ class TsCode {
     }
 
     getIdName(item:Identifier):string {
-        if (item.redirectedFrom !== null) {
-            return this.getIdName(item.redirectedFrom);
+        if (item.typeDefFrom !== null) {
+            return this.getIdName(item.typeDefFrom);
         }
         if (item.templateBase !== null) {
             return this.getIdName(item.templateBase)+'_'+item.templateParameters!.map(id=>this.getIdName(id)).join('_');
@@ -417,7 +417,7 @@ class TsCode {
         if (item.data instanceof PdbId.MemberFunctionType) {
             return this.getIdName(item.data.memberPointerBase)+'_fn';
         }
-        const nameobj = this.getNameOnly(item);
+        const nameobj = this.base.getNameOnly(item);
         if (!(nameobj instanceof tsw.NameProperty)) throw Error(`is not name(${item})`);
         let name = nameobj.name.replace(/[{},<>]/g, v=>idremap[v]);
         if (name.startsWith('-')) {
@@ -429,80 +429,8 @@ class TsCode {
         return name;
     }
 
-    getNameOnly(item:Identifier):tsw.Property {
-        if (item.templateBase !== null) {
-            throw Error(`${item}: getName with template`);
-        }
-        if (item.is(PdbId.TypeUnion)) {
-            throw Error(`${item}: getName with type union`);
-        }
-        if (item.is(PdbId.Decorated)) {
-            throw Error(`getName with deco type(${item})`);
-        }
-        if (item.is(PdbId.FunctionType) || item.is(PdbId.FunctionTypeBase)) {
-            throw Error(`${item.name}: getName with function type`);
-        }
-        if (item.parent === null) {
-            throw Error(`${item.name} has not parent, (type=${item.data.constructor.name})`);
-        }
-        if (item.is(PdbId.LambdaClass)) {
-            throw new IgnoreThis(`lambda (${item})`);
-        }
-        if (item.is(PdbId.KeyType)) {
-            throw new IgnoreThis(`temporal key (${item})`);
-        }
-
-        let name = item.removeParameters().name;
-        if (item.is(PdbId.Function) || item.is(PdbId.FunctionBase)) {
-            if (item.data.isConstructor) {
-                return tswNames.constructWith;
-            } else if (item.data.isDestructor) {
-                const NativeType = this.base.NativeType.importValue();
-                return new tsw.BracketProperty(NativeType.member(tswNames.dtor));
-            }
-        }
-
-        if (item.is(PdbId.VCall)) {
-            return new tsw.NameProperty('__vcall_'+this.getIdName(item.data.param));
-        }
-        const remapped = specialNameRemap.get(name);
-        let matched:RegExpMatchArray|null;
-        if (remapped != null) {
-            name = remapped;
-        } else if (name.startsWith('`')) {
-            if (item.params !== null) {
-                const params = [...item.params];
-                if (name.startsWith("`vector deleting destructor'")) {
-                    name = '__vector_deleting_destructor_'+params.join('_');
-                } else if (name.startsWith("`vftable'")) {
-                    name = '__vftable_for_'+params.map(id=>this.getIdName(id)).join('_');
-                } else if (name.startsWith("`vbtable'")) {
-                    name = '__vbtable_for_'+params.map(id=>this.getIdName(id)).join('_');
-                } else {
-                    name = '__'+name.replace(/[`' ()\-,0-9]/g, '');
-                    // name = '__'+name.replace(/[`' ()-,0-9]/g, '')+'_'+item.adjustors.join('_').replace(/-/g, 'minus_');
-                }
-            } else {
-                name = '__'+name.replace(/[`' ()\-,0-9]/g, '');
-            }
-        } else if ((matched = name.match(adjustorRegExp)) !== null) {
-            name = matched[1]+'_adjustor_'+matched[2];
-        } else if (name.startsWith('operator ')) {
-            if (item.is(PdbId.FunctionBase) || item.is(PdbId.TemplateFunctionBase)) {
-                for (const over of item.data.allOverloads()) {
-                    if (over.data.returnType === null) throw Error(`Unresolved return type ${over}`);
-                    name = 'operator_castto_'+this.getIdName(over.data.returnType);
-                    break;
-                }
-            } else {
-                throw Error(`failed to get return type(${item})`);
-            }
-        }
-        return new tsw.NameProperty(name);
-    }
-
     defineType(item:Identifier, type:tsw.Type):tsw.BlockItem {
-        const name = this.getNameOnly(item);
+        const name = this.base.getNameOnly(item);
         return new tsw.Export(new tsw.TypeDef(name.toName().type, type));
     }
 
@@ -523,9 +451,6 @@ class TsCode {
         if (item.parent === null) {
             throw Error(`${item.name} has not parent`);
         }
-        if (item.is(PdbId.LambdaClass)) {
-            throw new IgnoreThis(`lambda (${item})`);
-        }
 
         let result:tsw.ItemPair|null = null;
         if (item.parent !== PdbId.global) {
@@ -536,7 +461,7 @@ class TsCode {
             }
         }
 
-        const prop = this.getNameOnly(item);
+        const prop = this.base.getNameOnly(item);
         if (result !== null) {
             result = new tsw.ItemPair(
                 result.value.member(prop),
@@ -577,22 +502,22 @@ class TsCodeDeclaration extends TsCode {
         }
 
         try {
-            if (!item.is(PdbId.Redirect)) {
+            if (!item.is(PdbId.TypeDef)) {
                 PdbId.printOnProgress(`[symbolwriter.ts] ${item}: is not redirecting`);
                 return;
             }
-            const ori = item.data.redirectTo;
-            const from = ori.redirectedFrom;
-            ori.redirectedFrom = null;
+            const ori = item.data.typeDef;
+            const from = ori.typeDefFrom;
+            ori.typeDefFrom = null;
             const type = this.base.toTsw(ori).type;
             const NativeClassType = this.base.NativeClassType.importType();
             if (COMMENT_SYMBOL) this.currentBlock.comment(ori.symbolIndex+': '+ori.source);
             this.currentBlock.write(this.defineType(item, type));
             const typeOfThis = new tsw.TypeOf(this.base.toTsw(ori.removeTemplateParameters()).value);
             const classType = NativeClassType.template(type).and(typeOfThis);
-            const name = this.getNameOnly(item);
+            const name = this.base.getNameOnly(item);
             this.currentBlock.write(this.defineVariable(name, classType, 'const', this.base.toTsw(ori).value));
-            ori.redirectedFrom = from;
+            ori.typeDefFrom = from;
         } catch (err) {
             if (err instanceof IgnoreThis) {
                 this.currentBlock.comment(`ignored: ${item}`);
@@ -628,7 +553,7 @@ class TsCodeDeclaration extends TsCode {
             }
 
             const target = field.base.removeTemplateParameters();
-            const name = this.getNameOnly(field.base);
+            const name = this.base.getNameOnly(field.base);
 
             const scope = this.currentClass || this.currentBlock;
 
@@ -737,7 +662,7 @@ class TsCodeDeclaration extends TsCode {
                 type = type.params[0];
             }
 
-            const name = this.getNameOnly(member.base);
+            const name = this.base.getNameOnly(member.base);
             if (this.currentClass !== null) {
                 this.currentClass.write(this.getClassDeclaration(name, type, false, isStatic));
             } else {
@@ -806,7 +731,7 @@ class TsCodeDeclaration extends TsCode {
         try {
             let opened = false;
 
-            const clsname = this.getNameOnly(base);
+            const clsname = this.base.getNameOnly(base);
             const clsnameValue = clsname.toName().value;
             const cls = new tsw.Class(clsnameValue);
             const tinfo = TemplateInfo.from(base);
@@ -1002,7 +927,7 @@ class TsCodeDeclaration extends TsCode {
 
     *enterNamespace(item:Identifier):IterableIterator<void> {
         if (!(this.currentBlock instanceof tsw.Block)) throw Error(`${this.currentBlock} is not namespace`);
-        const prop = this.getNameOnly(item);
+        const prop = this.base.getNameOnly(item);
 
         const ns = new tsw.Namespace(prop.toName().value);
 
@@ -1047,7 +972,7 @@ class TsCodeDeclaration extends TsCode {
     writeMembers(field:PdbMember<PdbId.Data>, insideOfClass:boolean):void {
         if (field.is(PdbId.Function)) {
             this._writeFunctionMember(field, insideOfClass);
-        } else if (field.is(PdbId.Redirect)) {
+        } else if (field.is(PdbId.TypeDef)) {
             this._writeRedirect(field.base);
         } else if (field.is(PdbId.NamespaceLike) || field.is(PdbId.TemplateBase)) {
             if (!insideOfClass) {
@@ -1213,6 +1138,9 @@ class MinecraftTsFile extends TsFile implements wrapperUtil.TsBase {
             return this._getVarName(baseid.data.memberPointerBase)+'_fn';
         }
         if (baseid.is(PdbId.TypeUnion)) return 'arg';
+        if (LAMBDA_REGEXP.test(baseid.name)) {
+            return 'lambda';
+        }
         let basename = this.getNameOnly(baseid).toName().value.name;
         if (basename.endsWith('_t')) basename = basename.substr(0, basename.length-2);
         basename = styling.toCamelStyle(basename, /[[\] :*]/g, false);
@@ -1254,8 +1182,8 @@ class MinecraftTsFile extends TsFile implements wrapperUtil.TsBase {
     }
 
     getIdName(item:Identifier):string {
-        if (item.redirectedFrom !== null) {
-            return this.getIdName(item.redirectedFrom);
+        if (item.typeDefFrom !== null) {
+            return this.getIdName(item.typeDefFrom);
         }
         if (item.templateBase !== null) {
             return this.getIdName(item.templateBase)+'_'+item.templateParameters!.map(id=>this.getIdName(id)).join('_');
@@ -1297,9 +1225,6 @@ class MinecraftTsFile extends TsFile implements wrapperUtil.TsBase {
         if (item.parent === null) {
             throw Error(`${item.name} has not parent, (type=${item.data.constructor.name})`);
         }
-        if (item.is(PdbId.LambdaClass)) {
-            throw new IgnoreThis(`lambda (${item})`);
-        }
         if (item.is(PdbId.KeyType)) {
             throw new IgnoreThis(`temporal key (${item})`);
         }
@@ -1317,6 +1242,7 @@ class MinecraftTsFile extends TsFile implements wrapperUtil.TsBase {
         if (item.is(PdbId.VCall)) {
             return new tsw.NameProperty('__vcall_'+this.getIdName(item.data.param));
         }
+
         const remapped = specialNameRemap.get(name);
         let matched:RegExpMatchArray|null;
         if (remapped != null) {
@@ -1349,6 +1275,8 @@ class MinecraftTsFile extends TsFile implements wrapperUtil.TsBase {
             } else {
                 throw Error(`failed to get return type(${item})`);
             }
+        } else if (LAMBDA_REGEXP.test(name)) {
+            name = RegExp.$1;
         }
         return new tsw.NameProperty(name);
     }
@@ -1424,9 +1352,6 @@ class MinecraftTsFile extends TsFile implements wrapperUtil.TsBase {
     }
 
     private _toTsw(item:Identifier, opts:ToTswOptions):tsw.ItemPair {
-        if (item.is(PdbId.LambdaClass)) {
-            throw new IgnoreThis(`lambda (${item})`);
-        }
         if (item.parent === PdbId.global && item.name.startsWith('`')) {
             throw new IgnoreThis(`private symbol (${item})`);
         }
@@ -1438,8 +1363,8 @@ class MinecraftTsFile extends TsFile implements wrapperUtil.TsBase {
         try {
             recursiveCheck.add(item);
 
-            if (item.redirectedFrom !== null && !opts.noTemplate) {
-                return this.toTsw(item.redirectedFrom, opts);
+            if (item.typeDefFrom !== null && !opts.noTemplate) {
+                return this.toTsw(item.typeDefFrom, opts);
             }
             if (item.is(PdbId.Decorated)) {
                 if (item.data.deco === DecoSymbol.const) {
@@ -1835,13 +1760,13 @@ class MinecraftTsFile extends TsFile implements wrapperUtil.TsBase {
 }
 
 // std.make('string').redirect(std.find('basic_string<char,std::char_traits<char>,std::allocator<char> >'));
-PdbId.parse('std::ostream').redirect(PdbId.parse('std::basic_ostream<char,std::char_traits<char> >'));
-PdbId.parse('std::istream').redirect(PdbId.parse('std::basic_istream<char,std::char_traits<char> >'));
-PdbId.parse('std::iostream').redirect(PdbId.parse('std::basic_iostream<char,std::char_traits<char> >'));
-PdbId.parse('std::stringbuf').redirect(PdbId.parse('std::basic_stringbuf<char,std::char_traits<char>,std::allocator<char> >'));
-PdbId.parse('std::istringstream').redirect(PdbId.parse('std::basic_istringstream<char,std::char_traits<char>,std::allocator<char> >'));
-PdbId.parse('std::ostringstream').redirect(PdbId.parse('std::basic_ostringstream<char,std::char_traits<char>,std::allocator<char> >'));
-PdbId.parse('std::stringstream').redirect(PdbId.parse('std::basic_stringstream<char,std::char_traits<char>,std::allocator<char> >'));
+PdbId.parse('std::ostream').typeDef(PdbId.parse('std::basic_ostream<char,std::char_traits<char> >'));
+PdbId.parse('std::istream').typeDef(PdbId.parse('std::basic_istream<char,std::char_traits<char> >'));
+PdbId.parse('std::iostream').typeDef(PdbId.parse('std::basic_iostream<char,std::char_traits<char> >'));
+PdbId.parse('std::stringbuf').typeDef(PdbId.parse('std::basic_stringbuf<char,std::char_traits<char>,std::allocator<char> >'));
+PdbId.parse('std::istringstream').typeDef(PdbId.parse('std::basic_istringstream<char,std::char_traits<char>,std::allocator<char> >'));
+PdbId.parse('std::ostringstream').typeDef(PdbId.parse('std::basic_ostringstream<char,std::char_traits<char>,std::allocator<char> >'));
+PdbId.parse('std::stringstream').typeDef(PdbId.parse('std::basic_stringstream<char,std::char_traits<char>,std::allocator<char> >'));
 PdbId.parse('RakNet::RakNetRandom').determine(PdbId.Class);
 PdbId.parse('enum DimensionId');
 new Definer('JsonUtil::JsonSchemaNode').item.filted = false;

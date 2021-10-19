@@ -1,7 +1,4 @@
-type_id - symbol not found
-CommandRegistry::parse - too few, it's in cache, seems parsing failed
 
+
+destructor determine failed.
 enum to extended int32_t **
-
-
-bdsx api with only js

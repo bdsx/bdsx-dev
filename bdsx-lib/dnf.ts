@@ -249,9 +249,9 @@ export namespace dnf {
         }
 
         /**
-         * ignore original features.
+         * set only for JS calls
          */
-        overwrite(func:(this:THIS, ...args:any[])=>any):void {
+        set(func:(this:THIS, ...args:any[])=>any):void {
             this.nf[nativeCall] = func;
         }
 

@@ -81,6 +81,7 @@ interface IFarmlandDecayEvent {
     blockSource: BlockSource;
     culprit: Actor;
 }
+/** @deprecated */
 export class FarmlandDecayEvent implements IFarmlandDecayEvent {
     constructor(
         public block: Block,
@@ -101,6 +102,7 @@ interface ICampfireTryLightFire {
     blockPos: BlockPos;
 }
 
+/** @deprecated */
 export class CampfireTryLightFire implements ICampfireTryLightFire {
     constructor(
         public blockPos: BlockPos,
@@ -118,6 +120,7 @@ interface ICampfireTryDouseFire {
     blockSource: BlockSource;
     blockPos: BlockPos;
 }
+/** @deprecated */
 export class CampfireTryDouseFire implements ICampfireTryDouseFire {
     constructor(
         public blockPos: BlockPos,

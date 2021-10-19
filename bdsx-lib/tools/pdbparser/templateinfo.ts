@@ -102,6 +102,16 @@ export class TemplateInfo {
 
     appendTypes(types:PdbId<PdbId.Data>[], variadicType:PdbId<PdbId.Data>|null):void {
         let i = this.paramTypes.length;
+        if (types.length === 1 && i === 0 && variadicType !== null) {
+            const t = types[i];
+            this.paramTypes.push(new TemplateDeclParam(
+                `T`,
+                t.unwrapType(),
+                t,
+                false
+            ));
+            return;
+        }
         for (const t of types) {
             this.paramTypes.push(new TemplateDeclParam(
                 `T${i++}`,

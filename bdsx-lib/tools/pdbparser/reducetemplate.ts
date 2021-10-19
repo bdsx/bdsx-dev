@@ -199,6 +199,34 @@ function checkParameterDupplication(specialized:Identifier[]):number {
 }
 
 export function reduceTemplateTypes():void {
+    console.log(`[symbolwriter.ts] resolve template parameters...`);
+    for (const item of PdbId.global.loopAll()) {
+        if (item.templateParameters === null) continue;
+
+        let modified = false;
+        const newParams = item.templateParameters.map(param=>{
+            const {list, base} = param.getDecoList();
+            if (param.is(PdbId.Decorated)) {
+                const func = param.data.base;
+                if (func.is(PdbId.FunctionBase)) {
+                    if (func.data.overloads.length === 0) {
+                        throw Error(`overload not found`);
+                    }
+                    modified = true;
+                    let newfunc = func.data.overloads[0];
+                    if (newfunc.data.constFunction !== null) {
+                        newfunc = newfunc.data.constFunction;
+                    }
+                    return list.apply(newfunc);
+                }
+            }
+            return param;
+        });
+        if (!modified) continue;
+        item.templateBase!.data.makeSpecialized(newParams);
+        item.delete();
+    }
+
     console.log(`[symbolwriter.ts] Reducing template types...`);
     for (const item of PdbId.global.loopAll()) {
         if (item.is(PdbId.TemplateBase)) {

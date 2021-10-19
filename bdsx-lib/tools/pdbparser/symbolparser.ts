@@ -249,6 +249,7 @@ export class PdbId<DATA extends PdbId.Data> {
     public readonly originalName:string;
     public parent:PdbId<PdbId.Data>|null = null;
     public data:DATA = new PdbId.Data(this) as any;
+    public deleted = false;
     public isPrivate = false;
     public isStatic = false;
     public isValue = false;
@@ -260,7 +261,7 @@ export class PdbId<DATA extends PdbId.Data> {
     public address = 0;
     public ref = 0;
     public source = '';
-    public redirectedFrom:PdbId<PdbId.Data>|null = null;
+    public typeDefFrom:PdbId<PdbId.Data>|null = null;
     public templateBase:PdbId<PdbId.TemplateBase>|null = null;
     public templateParameters:PdbId<PdbId.Data>[]|null = null;
     public params:PdbId<PdbId.Data>[]|null = null;
@@ -381,7 +382,7 @@ export class PdbId<DATA extends PdbId.Data> {
             if (source != null) id.source = source;
             return id;
         });
-        const list = this.getDecoList();
+        const list = this.getDecoList().list;
         return list.apply(noexcept);
     }
 
@@ -391,8 +392,13 @@ export class PdbId<DATA extends PdbId.Data> {
             if (idx !== -1) this.templateBase.data.specialized.splice(idx, 1);
         }
         this.data._delete();
+        this.deleted = true;
         if (this.parent !== null) {
             PdbId.keyMap.delete(PdbId.makeChildKey(this.parent, this.name));
+
+            const children = this.parent.children;
+            const idx = children.indexOf(this);
+            if (idx !== -1) children.splice(idx ,1);
         }
     }
 
@@ -614,10 +620,10 @@ export class PdbId<DATA extends PdbId.Data> {
         }
     }
 
-    getDecoList():DecoList {
+    getDecoList():{list:DecoList, base:PdbId<PdbId.Data>} {
         const list = new DecoList;
-        list.addFrom(this);
-        return list;
+        const base = list.addFrom(this);
+        return { list, base };
     }
 
     decay():PdbId<PdbId.Data> {
@@ -710,10 +716,10 @@ export class PdbId<DATA extends PdbId.Data> {
         }
     }
 
-    redirect(target:PdbId<PdbId.Data>):void {
-        const data = this.determine(PdbId.Redirect);
-        data.redirectTo = target;
-        target.redirectedFrom = this;
+    typeDef(target:PdbId<PdbId.Data>):void {
+        const data = this.determine(PdbId.TypeDef);
+        data.typeDef = target;
+        target.typeDefFrom = this;
     }
     static parse(symbol:string):PdbId<PdbId.Data> {
         const oldi = parser.i;
@@ -830,7 +836,7 @@ export namespace PdbId {
 
         getTypeOfIt():PdbId<Data> {
             if (this.id.isValue) {
-                throw new IdError('unexpected value', this.id);
+                return void_ptr_t;
             }
             return typename.data.makeSpecialized([this.id]);
         }
@@ -844,9 +850,7 @@ export namespace PdbId {
         }
 
         _delete():void {
-            const children = this.id.parent!.children;
-            const idx = children.indexOf(this.id);
-            if (idx !== -1) children.splice(idx ,1);
+            // empty
         }
         toStringWith(name:string):string {
             return name;
@@ -1281,8 +1285,8 @@ export namespace PdbId {
             return super.getTypeOfIt();
         }
     }
-    export class Redirect extends Data {
-        public redirectTo:PdbId<Data>;
+    export class TypeDef extends Data {
+        public typeDef:PdbId<Data>;
         constructor(id:PdbId<Data>) {
             super(id);
         }
@@ -1398,18 +1402,19 @@ function parseParameters():PdbId<PdbId.Data>[] {
     return args;
 }
 
-class DecoList {
+export class DecoList {
     public readonly decos:DecoSymbol[] = [];
 
     add(...deco:DecoSymbol[]):void {
         this.decos.push(...deco);
     }
 
-    addFrom(id:PdbId<PdbId.Data>):void {
+    addFrom(id:PdbId<PdbId.Data>):PdbId<PdbId.Data> {
         while (id.is(PdbId.Decorated)) {
             this.decos.push(id.data.deco);
             id = id.data.base;
         }
+        return id;
     }
 
     apply(target:PdbId<PdbId.Data>):PdbId<PdbId.Data> {
@@ -1751,7 +1756,7 @@ function parseIdentity(eof:string, info:{isTypeInside?:boolean, scope?:PdbId<Pdb
                             }
                         } else if (parser.nextIf("vcall'")) {
                             const arg = parser.readTo("'");
-                            parser.readTo("'");
+                            parser.nextIf(" }'");
                             id = scope.makeChild(parser.getFrom(from));
                             id.isPrivate = true;
                             id.determine(PdbId.VCall).param = PdbId.make(arg);

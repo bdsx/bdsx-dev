@@ -33,7 +33,7 @@ Json.Value.prototype[NativeType.ctor] = function():void {
     const ptr:StaticPointer = this as any;
     ptr.setUint8(Json.ValueType.Null, 8);
 };
-dnf(Json.Value, 'constructWith').overwrite(function(value:unknown):void {
+dnf(Json.Value, 'constructWith').set(function(value:unknown):void {
     const ptr:StaticPointer = this as any;
     switch (typeof value) {
     case 'boolean':
