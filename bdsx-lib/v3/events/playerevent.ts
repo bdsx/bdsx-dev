@@ -140,6 +140,14 @@ export class PlayerJumpEvent extends PlayerEvent {
 export class PlayerStartSwimmingEvent extends PlayerEvent {
 }
 
+export class PlayerChatEvent extends PlayerEvent {
+    constructor(
+        player: Player,
+        public message:string) {
+        super(player);
+    }
+}
+
 
 events.playerUseItem.setInstaller(()=>{
     function onPlayerUseItem(this: PlayerRaw, itemStack:ItemStack, useMethod:number, consumeItem:boolean):void {
@@ -290,7 +298,7 @@ events.playerPickupItem.setInstaller(()=>{
     const _onPlayerPickupItem = hook(PlayerRaw, "take").call(onPlayerPickupItem);
 });
 
-events.packetAfter(MinecraftPacketIds.Login).on((ptr, ni, packetId) => {
+events.packetAfter(MinecraftPacketIds.Login).on((ptr, ni) => {
     const connreq = ptr.connreq;
     if (connreq === null) return; // wrong client
     const cert = connreq.getCertificate();
@@ -300,4 +308,14 @@ events.packetAfter(MinecraftPacketIds.Login).on((ptr, ni, packetId) => {
 
     const ev = new PlayerLoginEvent(player, ptr as LoginPacketWithConnectionRequest);
     events.playerLogin.fire(ev);
+});
+events.packetBefore(MinecraftPacketIds.Text).on((ptr, ni)=>{
+    const player = Player.fromNetworkIdentifier(ni);
+    if (player === null) return;
+
+    const ev = new PlayerChatEvent(player, ptr.message);
+    if (events.playerChat.fire(ev) === CANCEL) {
+        return CANCEL;
+    }
+    ptr.message = ev.message;
 });

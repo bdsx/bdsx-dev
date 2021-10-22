@@ -317,10 +317,8 @@ function makeReference<T, InputType>(type:NativeType<T, InputType>):NativeType<T
 }
 
 
-declare module './core'
-{
-    interface VoidPointerConstructor
-    {
+declare module './core' {
+    interface VoidPointerConstructor {
         [NativeType.align]:number;
         [NativeType.ctor](ptr:StaticPointer):void;
         [NativeType.dtor](ptr:StaticPointer):void;

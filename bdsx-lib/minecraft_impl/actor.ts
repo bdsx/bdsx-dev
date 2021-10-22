@@ -72,5 +72,5 @@ minecraftTsReady.promise.then(()=>{
     });
 
     asmcode.removeActor = makefunc.np(_removeActor, void_t, null, Actor);
-    hook(Actor, NativeType.dtor).raw(asmcode.actorDestructorHook, {callOriginal: true});
+    hook(Actor, NativeType.dtor).options({callOriginal: true}).raw(asmcode.actorDestructorHook);
 });

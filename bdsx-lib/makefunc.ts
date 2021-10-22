@@ -588,10 +588,8 @@ export interface MakeFuncOptionsWithName<THIS extends { new(): VoidPointer|void;
     name?:string;
 }
 
-declare module "./assembler"
-{
-    interface X64Assembler
-    {
+declare module "./assembler" {
+    interface X64Assembler {
         /**
          * asm.alloc + makefunc.js
          * allocates it on the executable memory. and make it as a JS function.
@@ -600,26 +598,21 @@ declare module "./assembler"
             returnType: RETURN, opts?: OPTS, ...params: PARAMS):
             FunctionFromTypes_js<StaticPointer, OPTS, PARAMS, RETURN>;
     }
-    namespace asm
-    {
+    namespace asm {
         function const_str(str:string, encoding?:BufferEncoding):Buffer;
     }
 }
-declare module "./core"
-{
+declare module "./core" {
     interface VoidPointerConstructor extends makefunc.Paramable{
         isTypeOf<T>(this:TypeIn<T>, v:unknown):v is T;
     }
-    interface VoidPointer
-    {
+    interface VoidPointer {
         [util.inspect.custom](depth:number, options:Record<string, any>):unknown;
         [asm.splitTwo32Bits]():[number, number];
     }
 }
-declare global
-{
-    interface Uint8Array
-    {
+declare global {
+    interface Uint8Array {
         [asm.splitTwo32Bits]():[number, number];
     }
 }

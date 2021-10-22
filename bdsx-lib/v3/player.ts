@@ -3,6 +3,7 @@ import { Entity } from "./entity";
 import { events } from "./events";
 import { system } from "./system";
 import colors = require('colors');
+import { Inventory } from "./inventory";
 
 interface PlayerComponentClass {
     new(player:Player):PlayerComponent;
@@ -47,6 +48,7 @@ export class Player extends Entity {
     public entity:IEntity;
 
     protected actor:ServerPlayer|null;
+    private _inv:Inventory|null;
 
     private readonly components = new Map<PlayerComponentClass, PlayerComponent>();
 
@@ -60,6 +62,11 @@ export class Player extends Entity {
         namemap.set(_name, this);
         xuidmap.set(xuid, this);
         this.ip;
+    }
+
+    protected actorMust():ServerPlayer {
+        if (this.actor === null) throw Error(`${this}'s actor is not ready`);
+        return this.actor as ServerPlayer;
     }
 
     /**
@@ -81,6 +88,12 @@ export class Player extends Entity {
         const ipport = this.networkIdentifier.toString();
         const idx = ipport.indexOf('|');
         return (idx !== -1) ? ipport.substr(0, idx) : ipport;
+    }
+
+    get inventory():Inventory {
+        if (this._inv !== null) return this._inv;
+        const inv = this.actorMust().getSupplies();
+        return this._inv = new Inventory(inv);
     }
 
     addComponent(componentClass:PlayerComponentClass):PlayerComponent {

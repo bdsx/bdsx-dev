@@ -2,7 +2,7 @@ import { Actor, CommandSelectorBase, WildcardCommandSelector } from "../minecraf
 import { NativeType } from "../nativetype";
 
 declare module "../minecraft" {
-    interface WildcardCommandSelector<T0 extends Actor> extends CommandSelectorBase {
+    interface WildcardCommandSelector<T extends Actor> extends CommandSelectorBase {
     }
 }
 WildcardCommandSelector.setExtends(CommandSelectorBase);

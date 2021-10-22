@@ -1,7 +1,7 @@
-import { AttributeId, DimensionId, MobEffectIds } from "../enums";
+import { AttributeId, MobEffectIds } from "../enums";
 import { hook } from "../hook";
 import { mcglobal } from "../mcglobal";
-import { Actor, ActorUniqueID, AttributeInstance, EventResult, MobEffect, MobEffectInstance, RelativeFloat, ScriptServerActorEventListener, TeleportCommand, Vec3 } from "../minecraft";
+import { Actor, ActorUniqueID, AttributeInstance, DimensionId, EventResult, MobEffect, MobEffectInstance, RelativeFloat, ScriptServerActorEventListener, TeleportCommand, Vec3 } from "../minecraft";
 import { bin64_t } from "../nativetype";
 import { _tickCallback } from "../util";
 import { events } from "./events";
@@ -47,7 +47,6 @@ export class Entity {
     get dimensionId():DimensionId {
         return this.actorMust().getDimensionId();
     }
-
 
     /**
      * @deprecated compatibility warning. it returns the native class of Bedrock Dedicated Server. it can be modified by updates.

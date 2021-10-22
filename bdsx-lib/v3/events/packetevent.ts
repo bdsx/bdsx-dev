@@ -168,17 +168,17 @@ bedrockServer.withLoading().then(()=>{
     // hook raw
     asmcode.onPacketRaw = makefunc.np(onPacketRaw, SharedPtr.make(Packet), null, OnPacketRBP, int32_t, NetworkHandler.Connection);
     const packetlizer = hook(NetworkHandler, '_sortAndPacketizeEvents');
-    packetlizer.patch('hook-packet-raw', 0x240, asmcode.packetRawHook, Register.rax, true, [
-        0x8B, 0xD6,                     // mov edx,esi
-        0x48, 0x8D, 0x4D, 0x78,         // lea rcx,qword ptr ss:[rbp+78]
-        0xE8, 0xFF, 0xFF, 0xFF, 0xFF,   // call <bedrock_server.public: static class std::shared_ptr<class Packet> __cdecl MinecraftPackets::createPacket(enum MinecraftPacketIds)>
-        0x90                            // nop
-    ], [7, 11]);
+    packetlizer.subject('hook-packet-raw').offset(0x240).patch(
+        asmcode.packetRawHook, Register.rax, true, [
+            0x8B, 0xD6,                     // mov edx,esi
+            0x48, 0x8D, 0x4D, 0x78,         // lea rcx,qword ptr ss:[rbp+78]
+            0xE8, 0xFF, 0xFF, 0xFF, 0xFF,   // call <bedrock_server.public: static class std::shared_ptr<class Packet> __cdecl MinecraftPackets::createPacket(enum MinecraftPacketIds)>
+            0x90                            // nop
+        ], [7, 11]);
 
     // hook before
     asmcode.onPacketBefore = makefunc.np(onPacketBefore, ExtendedStreamReadResult, null, ExtendedStreamReadResult, OnPacketRBP, int32_t);
-    packetlizer.patch(
-        'hook-packet-before', 0x328,
+    packetlizer.subject('hook-packet-before').offset(0x328).patch(
         asmcode.packetBeforeHook, // original code depended
         Register.rax,
         true, [
@@ -199,15 +199,13 @@ bedrockServer.withLoading().then(()=>{
         0x41, 0x56, // push r14
     ];
     asmcode.PacketViolationHandlerHandleViolationAfter = proc['PacketViolationHandler::_handleViolation'].add(packetViolationOriginalCode.length);
-    hook(PacketViolationHandler, '_handleViolation').patch(
-        'hook-packet-before-skip', 0,
+    hook(PacketViolationHandler, '_handleViolation').subject('hook-packet-before-skip').patch(
         asmcode.packetBeforeCancelHandling,
         Register.rax, false, packetViolationOriginalCode, [3, 7, 21, 24]);
 
     // hook after
     asmcode.onPacketAfter = makefunc.np(onPacketAfter, void_t, null, OnPacketRBP, int32_t);
-    packetlizer.patch(
-        'hook-packet-after', 0x48d,
+    packetlizer.subject('hook-packet-after').offset(0x48d).patch(
         asmcode.packetAfterHook, // original code depended
         Register.rax, true, [
             0x48, 0x8B, 0x01, // mov rax,qword ptr ds:[rcx]
@@ -219,9 +217,9 @@ bedrockServer.withLoading().then(()=>{
 
     const onPacketSendNp = makefunc.np(onPacketSend, void_t, null, NetworkHandler, NetworkIdentifier, Packet);
     asmcode.onPacketSend = onPacketSendNp;
-    hook(NetworkHandler, 'send').raw(onPacketSendNp, {callOriginal: true});
-    hook(LoopbackPacketSender, 'sendToClients').patch(
-        'hook-packet-send-all', 0x90,
+    hook(NetworkHandler, 'send').options({callOriginal: true}).raw(onPacketSendNp);
+    hook(LoopbackPacketSender, 'sendToClients').subject('hook-packet-send-all').offset(0x90)
+    .patch(
         asmcode.packetSendAllHook, // original code depended
         Register.rax, true, [
             0x49, 0x8B, 0x07, // mov rax,qword ptr ds:[r15]

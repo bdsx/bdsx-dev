@@ -10,7 +10,7 @@ import type { CommandEvent } from "./commandevent";
 import type { EntityDieEvent, EntityHeathChangeEvent, EntityHurtEvent, EntitySneakEvent, EntityStartRidingEvent, EntityStopRidingEvent, SplashPotionHitEvent } from "./entityevent";
 import type { LevelExplodeEvent, LevelSaveEvent, LevelTickEvent, LevelWeatherChangeEvent } from "./levelevent";
 import type { ObjectiveCreateEvent, QueryRegenerateEvent, ScoreAddEvent, ScoreRemoveEvent, ScoreResetEvent, ScoreSetEvent } from "./miscevent";
-import type { PlayerAttackEvent, PlayerCritEvent, PlayerDisconnectEvent, PlayerDropItemEvent, PlayerInventoryChangeEvent, PlayerJoinEvent, PlayerLevelUpEvent, PlayerLoginEvent, PlayerPickupItemEvent, PlayerRespawnEvent, PlayerStartSwimmingEvent, PlayerUseItemEvent } from "./playerevent";
+import type { PlayerAttackEvent, PlayerChatEvent, PlayerCritEvent, PlayerDisconnectEvent, PlayerDropItemEvent, PlayerInventoryChangeEvent, PlayerJoinEvent, PlayerLevelUpEvent, PlayerLoginEvent, PlayerPickupItemEvent, PlayerRespawnEvent, PlayerStartSwimmingEvent, PlayerUseItemEvent } from "./playerevent";
 
 const PACKET_ID_COUNT = 0x100;
 const PACKET_EVENT_COUNT = 0x500;
@@ -101,6 +101,8 @@ export namespace events {
     export const playerLogin:Event<(player:PlayerLoginEvent)=>void> = new Event;
     /** Not cancellable */
     export const playerDisconnect:Event<(player:PlayerDisconnectEvent)=>void> = new Event;
+    /** Cancellable */
+    export const playerChat:Event<(player:PlayerChatEvent)=>void|CANCEL> = new Event;
 
     ////////////////////////////////////////////////////////
     // Level events

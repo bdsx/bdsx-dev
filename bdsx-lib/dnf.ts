@@ -1,6 +1,6 @@
 import { FloatRegister, Register } from "./assembler";
 import { AnyFunction } from "./common";
-import { NativePointer } from "./core";
+import { NativePointer, StaticPointer } from "./core";
 import { dll } from "./dll";
 import { FunctionFromTypes_js, makefunc, MakeFuncOptions, ParamType } from "./makefunc";
 import type { Type, UnwrapTypeArrayToArray } from "./nativetype";
@@ -120,9 +120,20 @@ export function dnf(nf:AnyFunction|Type<any>, methodName?:keyof any):dnf.Tool<an
 export namespace dnf {
     export class Tool<THIS> {
         constructor(
-            public readonly nf:AnyFunction,
-            public readonly name:string,
-            public readonly thisType:Type<THIS>|null) {
+            public nf:AnyFunction,
+            public name:string,
+            public thisType:Type<THIS>|null) {
+        }
+
+        getVFTableOffset():[number] {
+            if (this.thisType === null) throw Error(`this type is not determined`);
+            const vftable:StaticPointer = (this.thisType as any).__vftable;
+            if (vftable == null) throw Error(`${this.thisType.name}.__vftable not found`);
+            const addr = this.getAddress();
+            for (let offset=0;offset<0x1000;offset+= 8) {
+                if (vftable.getPointer(offset).equals(addr)) return [offset];
+            }
+            throw Error(`cannot find a function in the vftable`);
         }
 
         /**
@@ -261,7 +272,12 @@ export namespace dnf {
             ...params: PARAMS):
             FunctionFromTypes_js<NativePointer, OPTS, PARAMS, RETURN> {
             const addr = this.getAddress();
-            return makefunc.js(addr, returnType, opts, ...params);
+            const out = makefunc.js(addr, returnType, opts, ...params);
+            out.overloadInfo = this.getInfo().slice() as OverloadInfo;
+            out.overloadInfo[1] = params;
+            out.overloadInfo[2] = returnType;
+            out.overloadInfo[3] = opts || null;
+            return out;
         }
     }
 

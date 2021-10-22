@@ -4,7 +4,6 @@ import { isMainThread, Worker, workerData } from 'worker_threads';
 import { fsutil } from '../../fsutil';
 import { enumgen } from '../enumgen/enumgen';
 import { buildlib } from '../lib/buildlib';
-import globby = require('globby');
 import child_process = require('child_process');
 import path = require('path');
 import fs = require('fs');
@@ -13,11 +12,11 @@ import ts = require('typescript');
 
 const tasks:Record<string, ()=>(Promise<void>|void)> = {
     async main():Promise<void> {
-        tasks.copy();
         await Promise.all([
             tasks.asm(),
             tasks.enums(),
         ]);
+        tasks.copy();
         await tasks.v3();
         new Worker(path.join(__dirname, 'build.bundle.js'), {
             workerData: { target: 'tsc' }
@@ -49,8 +48,8 @@ const tasks:Record<string, ()=>(Promise<void>|void)> = {
     copy():void {
         buildlib.watchPromise('copy', '.', [
             '**/*.json',
-            'typings/**/*.ts',
             '**/*.js',
+            '**/*.d.ts',
             '!**/*.bundle.js',
             '!.eslintrc.json',
             '!package.json',
@@ -58,9 +57,6 @@ const tasks:Record<string, ()=>(Promise<void>|void)> = {
             '!node_modules/**/*',
             '!v3/**/*',
             '!tools/**/*',
-            '!minecraft.js',
-            '!minecraft_impl/enums.js',
-            '!asm/asmcode.js',
             '!tsconfig.json',
         ], files=>files.dest('../bdsx/bdsx').copyModified());
     },
@@ -72,9 +68,6 @@ const tasks:Record<string, ()=>(Promise<void>|void)> = {
             const jsPath = './minecraft_impl/enums.js';
             await fsutil.writeFile(dtsPath, dts);
             await fsutil.writeFile(jsPath, js);
-
-            const result = buildlib.SourceFiles.parse([dtsPath, jsPath]);
-            await result.dest('../bdsx/bdsx').copy();
         });
     },
     v3():Promise<void> {

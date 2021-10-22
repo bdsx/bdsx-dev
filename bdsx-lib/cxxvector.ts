@@ -8,8 +8,7 @@ import { Singleton } from "./singleton";
 import { templateName } from "./templatename";
 import util = require('util');
 
-export interface CxxVectorType<T> extends NativeClassType<CxxVector<T>>
-{
+export interface CxxVectorType<T> extends NativeClassType<CxxVector<T>> {
     new(address?:VoidPointer|boolean):CxxVector<T>;
     componentType:Type<any>;
 }
