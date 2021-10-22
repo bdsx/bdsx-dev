@@ -1,14 +1,11 @@
 // enums but not found in BDS symbols
 
-import minecraft = require('./minecraft');
 import './minecraft_impl/enums';
 
 export enum PistonAction {
     Extend = 1,
     Retract = 3,
 }
-
-export import DimensionId = minecraft.DimensionId;
 
 export enum AttributeId {
 	ZombieSpawnReinforcementsChange=1,
@@ -107,30 +104,8 @@ export enum ContainerId {
     None = 0xFF,
 }
 
-export import DeviceOS = minecraft.BuildPlatform;
-
 export enum DisplaySlot {
     BelowName = "belowname",
     List = "list",
     Sidebar = "sidebar",
 }
-
-// legacy
-import AttributeName_ = AttributeName;
-import DeviceOS_ = DeviceOS;
-
-declare module "./common" {
-	/** @deprecated import it from 'bdsx/enums' */
-	type AttributeName = AttributeName_;
-	/** @deprecated import it from 'bdsx/enums' */
-	let AttributeName:typeof AttributeName_;
-
-	/** @deprecated import it from 'bdsx/enums' */
-	type DeviceOS = DeviceOS_;
-	/** @deprecated import it from 'bdsx/enums' */
-	let DeviceOS:typeof DeviceOS_;
-}
-
-import common = require('./common');
-common.AttributeName = AttributeName;
-common.DeviceOS = DeviceOS;

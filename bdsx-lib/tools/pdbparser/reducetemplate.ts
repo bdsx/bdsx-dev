@@ -168,7 +168,6 @@ class ComparingBase {
     }
 }
 
-
 function checkParameterDupplication(specialized:Identifier[]):number {
     if (specialized.length === 0) return 0;
     const replacingMap = specialized.map(v=>new ReplacingMap(v));
@@ -229,6 +228,7 @@ export function reduceTemplateTypes():void {
 
     console.log(`[symbolwriter.ts] Reducing template types...`);
     for (const item of PdbId.global.loopAll()) {
+        if (item.is(PdbId.TemplateFunctionNameBase)) continue;
         if (item.is(PdbId.TemplateBase)) {
             const count = checkParameterDupplication(item.data.specialized);
             if (count === 0) continue;

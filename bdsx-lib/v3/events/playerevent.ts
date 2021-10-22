@@ -1,8 +1,7 @@
 import { events } from ".";
 import { CANCEL } from "../../common";
-import { DeviceOS } from "../../enums";
 import { hook } from "../../hook";
-import { Actor, CompletedUsingItemPacket, ConnectionRequest, Container, ExtendedCertificate, ItemActor, ItemStack, LoginPacket, MinecraftPacketIds, Player as PlayerRaw } from "../../minecraft";
+import { Actor, BuildPlatform, CompletedUsingItemPacket, ConnectionRequest, Container, ExtendedCertificate, ItemActor, ItemStack, LoginPacket, MinecraftPacketIds, Player as PlayerRaw } from "../../minecraft";
 import { int32_t } from "../../nativetype";
 import { _tickCallback } from "../../util";
 import { Entity } from "../entity";
@@ -28,7 +27,7 @@ export class PlayerLoginEvent extends PlayerEvent {
         super(player);
     }
 
-    get os():DeviceOS {
+    get os():BuildPlatform {
         return this.packet.connreq.getDeviceOS();
     }
 

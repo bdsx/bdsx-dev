@@ -753,9 +753,17 @@ export class PdbId<DATA extends PdbId.Data> {
     *components():IterableIterator<PdbId<PdbId.Data>> {
         if (this.templateBase !== null) {
             yield this.templateBase;
-            yield *this.templateParameters!;
+            for (const item of this.templateParameters!) {
+                yield * item.componentsWithThis();
+            }
         }
         yield * this.data._components();
+    }
+
+    *componentsWithThis():IterableIterator<PdbId<PdbId.Data>> {
+        const decayed = this.decay();
+        yield decayed;
+        yield * decayed.components();
     }
 
     static makeConstantNumber(value:number):PdbId<PdbId.ConstantNumber> {
@@ -930,23 +938,6 @@ export namespace PdbId {
         }
     }
     export class LambdaClass extends Class {
-        instanceOf<T extends Data>(type:AbstractClass<T>):this is T {
-            return this instanceof type || isBaseOf(type, LambdaClassOrFunction);
-        }
-        convertTo<T extends Data>(type:new(id:PdbId<any>)=>T):T {
-            return super.convertTo(type);
-        }
-    }
-    export class LambdaClassOrFunction extends NamespaceLike {
-        convertTo<T extends Data>(type:new(id:PdbId<any>)=>T):T {
-            if (type as any === Class) {
-                return new LambdaClass(this.id) as any;
-            }
-            if (type as any === FunctionBase) {
-                return new FunctionBase(this.id) as any;
-            }
-            return super.convertTo(type);
-        }
     }
     export class TypeUnion extends Data {
         public unionedTypes:Set<PdbId<Data>>;
@@ -955,7 +946,9 @@ export namespace PdbId {
             super(id);
         }
         *_components():IterableIterator<PdbId<PdbId.Data>> {
-            yield *this.unionedTypes;
+            for (const type of this.unionedTypes) {
+                yield * type.componentsWithThis();
+            }
         }
     }
 
@@ -989,7 +982,7 @@ export namespace PdbId {
         public returnType:PdbId<Data>|null = void_t;
         *_components():IterableIterator<PdbId<Data>> {
             if (this.returnType !== null) {
-                yield this.returnType;
+                yield * this.returnType.componentsWithThis();
             }
         }
         moveTo(other:this):void {
@@ -1112,6 +1105,9 @@ export namespace PdbId {
     export class TemplateFunctionNameBase extends TemplateBase {
         makeSpecialized(args:PdbId<Data>[], source?:string):PdbId<Data> {
             const id = this.specialized[0];
+            if (id == null) {
+                return makeSpecialized(this.id, args, source);
+            }
             id.compareTemplates(null, args);
             return id;
         }
@@ -1135,7 +1131,9 @@ export namespace PdbId {
             return this.functionBase.data.isDestructor;
         }
         *_components():IterableIterator<PdbId<Data>> {
-            yield *this.functionParameters;
+            for (const type of this.functionParameters) {
+                yield * type.componentsWithThis();
+            }
             yield *super._components();
         }
         getTypeOfIt():PdbId<Data> {
@@ -1706,17 +1704,25 @@ function parseIdentity(eof:string, info:{isTypeInside?:boolean, scope?:PdbId<Pdb
                     return scope;
                 } else if (oper === '<') {
                     const innerText = parser.readTo('>');
-                    const lambdaName = parser.getFrom(from);
+                    const fullName = parser.getFrom(from);
                     if (innerText === 'lambda_invoker_cdecl') {
-                        id = scope.makeChild(lambdaName);
+                        id = scope.makeChild(fullName);
                         const data = id.determine(PdbId.FunctionBase);
                         id.source = parser.getFrom(sourceFrom);
                     } else if (/^lambda_[a-z0-9]+$/.test(innerText)) {
-                        id = scope.makeChild(lambdaName);
+                        id = scope.makeChild(fullName);
                         id.source = parser.getFrom(sourceFrom);
-                        id.determine(PdbId.LambdaClassOrFunction);
+                        if (id.parent === null) {
+                            id.determine(PdbId.LambdaClass);
+                        } else if (id.parent.name === fullName) {
+                            id.determine(PdbId.FunctionBase);
+                        } else if (id.parent.name === fullName.substr(1)) { // destructor expected
+                            id.determine(PdbId.FunctionBase);
+                        } else {
+                            id.determine(PdbId.LambdaClass);
+                        }
                     } else if (/^unnamed-type-.+$/.test(innerText)) {
-                        id = scope.makeChild(lambdaName);
+                        id = scope.makeChild(fullName);
                         id.source = parser.getFrom(sourceFrom);
                     } else {
                         printParserState();
@@ -1866,6 +1872,8 @@ function parseIdentity(eof:string, info:{isTypeInside?:boolean, scope?:PdbId<Pdb
                             idname += oper;
                         }
                     }
+                    id = scope.makeChild(idname);
+                    id.determine(PdbId.FunctionBase);
                 } else if (idname === 'unsigned') {
                     isUnsigned = 1;
                     idname = parser.readIdentifier();
@@ -1890,12 +1898,17 @@ function parseIdentity(eof:string, info:{isTypeInside?:boolean, scope?:PdbId<Pdb
                         isUnsigned === 1 ? DecoSymbol.unsigned : DecoSymbol.signed,
                         parser.getFrom(sourceFrom));
                 }
-                if (idname.startsWith('~')) {
-                    id.parent!.determine(PdbId.Class);
-                }
                 id.source = parser.getFrom(sourceFrom);
                 if (castTo !== null) {
                     id.determine(PdbId.CastFunctionBase).castTo = castTo;
+                }
+            }
+            if (idname.startsWith('~')) {
+                id.parent!.determine(PdbId.Class);
+                if (id.parent!.templateParameters !== null) {
+                    id.determine(PdbId.TemplateFunctionNameBase);
+                } else {
+                    id.determine(PdbId.FunctionBase);
                 }
             }
             break;

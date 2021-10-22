@@ -102,7 +102,7 @@ export class TemplateInfo {
 
     appendTypes(types:PdbId<PdbId.Data>[], variadicType:PdbId<PdbId.Data>|null):void {
         let i = this.paramTypes.length;
-        if (types.length === 1 && i === 0 && variadicType !== null) {
+        if (types.length === 1 && i === 0 && variadicType === null) {
             const t = types[i];
             this.paramTypes.push(new TemplateDeclParam(
                 `T`,
@@ -131,6 +131,14 @@ export class TemplateInfo {
     }
 
     static from(item:Identifier):TemplateInfo {
+        if (item.templateInfo != null) {
+            return item.templateInfo;
+        }
+        if (item.parent === null) {
+            item.templateInfo = TEMPLATE_INFO_EMPTY;
+            return item.templateInfo;
+        }
+
         function getTemplateItem(item:Identifier):PdbId<PdbId.Data>|null {
             if (item.is(PdbId.Function)) {
                 const funcbase = item.data.functionBase;
@@ -142,14 +150,6 @@ export class TemplateInfo {
             return null;
         }
         try {
-            if (item.templateInfo != null) {
-                return item.templateInfo;
-            }
-            if (item.parent === null) {
-                item.templateInfo = TEMPLATE_INFO_EMPTY;
-                return item.templateInfo;
-            }
-
             const parentInfo = TemplateInfo.from(item.parent);
             let parameters:(Identifier|Identifier[])[] = parentInfo.parameters;
 

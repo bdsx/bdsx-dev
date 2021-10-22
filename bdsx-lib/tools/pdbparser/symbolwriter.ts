@@ -730,8 +730,12 @@ class TsCodeDeclaration extends TsCode {
 
         try {
             let opened = false;
-
             const clsname = this.base.getNameOnly(base);
+            if (clsname instanceof tsw.NameProperty) {
+                if (clsname.name.startsWith('~')) {
+                    throw Error(`Unexpected class name ${clsname.name}`);
+                }
+            }
             const clsnameValue = clsname.toName().value;
             const cls = new tsw.Class(clsnameValue);
             const tinfo = TemplateInfo.from(base);
@@ -822,9 +826,13 @@ class TsCodeDeclaration extends TsCode {
                 this.getAllFields(fields, overload);
             }
 
+            const funcNames = new Set<string>();
             const sortedMember = fields.sortedMember();
             if (opened) {
                 for (const field of fields.sortedStaticMember()) {
+                    if (field.isStatic) {
+                        funcNames.add(field.base.name);
+                    }
                     this.writeMembers(field, true);
                 }
                 for (const field of sortedMember) {
@@ -837,6 +845,9 @@ class TsCodeDeclaration extends TsCode {
             for (const _ of this.enterNamespace(base)) {
                 if (!opened) {
                     for (const field of sortedMember) {
+                        if (field.isStatic) {
+                            funcNames.add(field.base.name);
+                        }
                         try {
                             this.writeMembers(field, false);
                         } catch (err) {
@@ -853,6 +864,11 @@ class TsCodeDeclaration extends TsCode {
 
                 for (const field of fields.sortedInNamespace()) {
                     try {
+                        if (funcNames.has(field.base.name)) {
+                            this.currentBlock.comment(`ignored: ${field.base.name}`);
+                            this.currentBlock.comment('  dupplicated function name');
+                            continue;
+                        }
                         this.writeMembers(field, false);
                     } catch (err) {
                         if ((err instanceof IgnoreThis)) {
@@ -1257,11 +1273,11 @@ class MinecraftTsFile extends TsFile implements wrapperUtil.TsBase {
                 } else if (name.startsWith("`vbtable'")) {
                     name = '__vbtable_for_'+params.map(id=>this.getIdName(id)).join('_');
                 } else {
-                    name = '__'+name.replace(/[`' ()\-,0-9]/g, '');
+                    name = '__'+name.replace(/[`' ()\-,]/g, '');
                     // name = '__'+name.replace(/[`' ()-,0-9]/g, '')+'_'+item.adjustors.join('_').replace(/-/g, 'minus_');
                 }
             } else {
-                name = '__'+name.replace(/[`' ()\-,0-9]/g, '');
+                name = '__'+name.replace(/[`' ()\-,]/g, '');
             }
         } else if ((matched = name.match(adjustorRegExp)) !== null) {
             name = matched[1]+'_adjustor_'+matched[2];
@@ -1277,6 +1293,8 @@ class MinecraftTsFile extends TsFile implements wrapperUtil.TsBase {
             }
         } else if (LAMBDA_REGEXP.test(name)) {
             name = RegExp.$1;
+        } else if (name === '<lambda_invoker_cdecl>') {
+            name = 'lambda_invoker_cdecl';
         }
         return new tsw.NameProperty(name);
     }
