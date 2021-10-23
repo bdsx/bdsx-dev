@@ -122,7 +122,7 @@ const tasks:Record<string, ()=>(Promise<void>|void)> = {
             srcSet.clear();
             destSet.clear();
         });
-    }
+    },
 };
 
 const taskName = (!isMainThread && workerData && workerData.target) || 'main';
