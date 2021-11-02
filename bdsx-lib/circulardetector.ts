@@ -6,7 +6,6 @@ let ref = 0;
 export class CircularDetector {
     private readonly map = new Map<unknown, unknown>();
 
-
     static decreaseDepth(options:Record<string, any>):Record<string, any> {
         return Object.assign({}, options, {
             depth: options.depth === null ? null : (options as any).depth - 1

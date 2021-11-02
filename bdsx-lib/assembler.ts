@@ -3,10 +3,8 @@ import { fsutil } from "./fsutil";
 import { polynominal } from "./polynominal";
 import { remapStack } from "./source-map-support";
 import { ParsingError, ParsingErrorContainer, SourcePosition, TextLineParser } from "./textparser";
-import { tsw } from "./tools/lib/tswriter";
 import { checkPowOf2, getLineAt } from "./util";
 import { BufferReader, BufferWriter } from "./writer/bufferstream";
-import { StringLineWriter } from "./writer/linewriter";
 import colors = require('colors');
 
 export enum Register {
@@ -49,8 +47,7 @@ export enum FloatRegister {
     xmm15,
 }
 
-enum MovOper
-{
+enum MovOper {
     Register,
     Const,
     Read,
@@ -73,8 +70,7 @@ enum FloatOperSize {
     doublePrecision
 }
 
-export enum OperationSize
-{
+export enum OperationSize {
     void,
     byte,
     word,
@@ -98,8 +94,7 @@ const sizemap = new Map<string, TypeSize>([
     ['xmmword', {bytes: 16, size: OperationSize.xmmword} ],
 ]);
 
-export enum Operator
-{
+export enum Operator {
     add,
     or,
     adc,
@@ -110,8 +105,7 @@ export enum Operator
     cmp,
 }
 
-export enum JumpOperation
-{
+export enum JumpOperation {
     jo,
     jno,
     jb,
@@ -130,8 +124,7 @@ export enum JumpOperation
     jg,
 }
 
-export interface Value64Castable
-{
+export interface Value64Castable {
     [asm.splitTwo32Bits]():[number, number];
 }
 
@@ -690,6 +683,10 @@ export class X64Assembler {
         return label.offset;
     }
 
+    exists(identifierName:string):boolean {
+        return this.scope.has(identifierName);
+    }
+
     labels(skipPrivate?:boolean):Record<string, number> {
         if (!this.normalized) throw Error(`asm is not built, need to call build()`);
         const labels:Record<string, number> = Object.create(null);
@@ -702,12 +699,12 @@ export class X64Assembler {
         return labels;
     }
 
-    defs():Record<string, number> {
+    defs():Record<string, [number, OperationSize?]> {
         if (!this.normalized) throw Error(`asm is not built, need to call build()`);
-        const labels:Record<string, number> = Object.create(null);
+        const labels:Record<string, [number, OperationSize?]> = Object.create(null);
         for (const [name, label] of this.ids) {
             if (label instanceof Defination) {
-                labels[name] = label.offset;
+                labels[name] = [label.offset, label.size];
             }
         }
         return labels;
@@ -2829,159 +2826,6 @@ export class X64Assembler {
         return out.buffer();
     }
 
-    toScript(bdsxLibPath:string, exportName?:string|null, generator?:string):{js:string, dts:string} {
-        bdsxLibPath = bdsxLibPath.replace(/\\/g, '/');
-
-        const buffer = this.buffer();
-        const rftable = this.ids.get('#runtime_function_table');
-
-        const dts = new StringLineWriter;
-        const js = new StringLineWriter;
-        dts.generateWarningComment(generator);
-        js.generateWarningComment(generator);
-
-        dts.writeln('');
-
-        let imports = 'cgate';
-        if (rftable instanceof Label) {
-            imports += ', runtimeError';
-        }
-        js.writeln(`const { ${imports} } = require('${bdsxLibPath}/core');`);
-        js.writeln(`const { asm } = require('${bdsxLibPath}/assembler');`);
-        js.writeln(`require('${bdsxLibPath}/codealloc');`);
-
-        const self = this;
-        const importList = new tsw.ImportList({
-            existName(name){ return self.ids.has(name); },
-            canAccessGlobalName(name){ return self.ids.has(name); },
-        });
-        const core = importList.from(`${bdsxLibPath}/core`);
-        const VoidPointer = core.import('VoidPointer');
-        const StaticPointer = core.import('StaticPointer');
-
-        for (const importLine of core.toTsw()) {
-            importLine.blockedWriteTo(dts);
-            dts.lineBreak();
-        }
-        const n = buffer.length & ~1;
-        js.writeln(`const buffer = cgate.allocExecutableMemory(${buffer.length+this.memoryChunkSize}, ${this.memoryChunkAlign});`);
-
-        js.result += "buffer.setBin('";
-        for (let i=0;i<n;) {
-            const low = buffer[i++];
-            const high = buffer[i++];
-
-            const hex = ((high << 8) | low).toString(16);
-            const count = 4-hex.length;
-            js.result += '\\u';
-            if (count !== 0) js.result += '0'.repeat(count);
-            js.result += hex;
-        }
-        if (buffer.length !== n) {
-            const low = buffer[n];
-            const hex = ((0xcc << 8) | low).toString(16);
-            const count = 4-hex.length;
-            js.result += '\\u';
-            if (count !== 0) js.result += '0'.repeat(count);
-            js.result += hex;
-        }
-        js.writeln("');");
-        // script.writeln();
-        if (exportName != null) {
-            dts.writeln(`export namespace ${exportName} {`);
-            js.writeln(`exports.${exportName} = {`);
-        } else {
-            dts.writeln(`declare namespace asmcode {`);
-            js.writeln('module.exports = {');
-        }
-        dts.tab();
-        js.tab();
-
-        for (const id of this.ids.values()) {
-            if (this.scope.has(id.name!)) continue;
-            let name = id.name;
-            if (name === null || name.startsWith('#')) continue;
-            let addrof:string;
-            if (!/^[A-Za-z_$][0-9A-Za-z_$]*$/.test(name)) {
-                name = JSON.stringify(name);
-                addrof = JSON.stringify('addressof_'+name);
-            } else {
-                addrof = 'addressof_'+name;
-            }
-
-            if (id instanceof Label) {
-                js.writeln(`get ${name}(){`);
-                js.writeln(`    return buffer.add(${id.offset});`);
-                js.writeln(`},`);
-                dts.writeln(`export const ${name}:${StaticPointer};`);
-            } else if (id instanceof Defination) {
-                const off = buffer.length + id.offset;
-                if (id.size != null) {
-                    switch (id.size) {
-                    case OperationSize.byte:
-                        js.writeln(`get ${name}(){`);
-                        js.writeln(`    return buffer.getUint8(${off});`);
-                        js.writeln(`},`);
-                        js.writeln(`set ${name}(n):number{`);
-                        js.writeln(`    buffer.setUint8(n, ${off});`);
-                        js.writeln(`},`);
-                        dts.writeln(`export let ${name}:number;`);
-                        break;
-                    case OperationSize.word:
-                        js.writeln(`get ${name}(){`);
-                        js.writeln(`    return buffer.getUint16(${off});`);
-                        js.writeln(`},`);
-                        js.writeln(`set ${name}(n){`);
-                        js.writeln(`    buffer.setUint16(n, ${off});`);
-                        js.writeln(`},`);
-                        dts.writeln(`export let ${name}:number;`);
-                        break;
-                    case OperationSize.dword:
-                        js.writeln(`get ${name}(){`);
-                        js.writeln(`    return buffer.getInt32(${off});`);
-                        js.writeln(`},`);
-                        js.writeln(`set ${name}(n){`);
-                        js.writeln(`    buffer.setInt32(n, ${off});`);
-                        js.writeln(`},`);
-                        dts.writeln(`export let ${name}:number;`);
-                        break;
-                    case OperationSize.qword:
-                        js.writeln(`get ${name}(){`);
-                        js.writeln(`    return buffer.getPointer(${off});`);
-                        js.writeln(`},`);
-                        js.writeln(`set ${name}(n){`);
-                        js.writeln(`    buffer.setPointer(n, ${off});`);
-                        js.writeln(`},`);
-                        dts.writeln(`export let ${name}:${VoidPointer};`);
-                        break;
-                    }
-                }
-                js.writeln(`get ${addrof}(){`);
-                js.writeln(`    return buffer.add(${off});`);
-                js.writeln(`},`);
-                dts.writeln(`export const ${addrof}:${StaticPointer};`);
-            }
-        }
-        js.detab();
-        js.writeln('};');
-        dts.detab();
-        dts.writeln(`}`);
-        if (exportName == null) {
-            dts.writeln(`export = asmcode;`);
-        }
-
-        if (rftable instanceof Label) {
-            const SIZE_OF_RF = 4 * 3;
-            const size = (buffer.length - rftable.offset) / SIZE_OF_RF | 0;
-            js.writeln(`runtimeError.addFunctionTable(buffer.add(${rftable.offset}), ${size}, buffer);`);
-
-            const labels = this.labels(true);
-            js.writeln(`asm.setFunctionNames(buffer, ${JSON.stringify(labels)});`);
-        }
-
-        return {js: js.result, dts:dts.result};
-    }
-
     static load(bin:Uint8Array):X64Assembler {
 
         const reader = new BufferReader(bin);
@@ -3094,8 +2938,7 @@ const REVERSE_MAP:Record<string, string> = {
     jg: 'jle',
 };
 
-interface Code extends X64Assembler
-{
+interface Code extends X64Assembler {
     [key:string]: any;
 }
 
@@ -3204,8 +3047,7 @@ for (const [name, [type, reg, size]] of regmap) {
 
 const defaultOperationSize = new WeakMap<(...args:any[])=>any, OperationSize>();
 
-export namespace asm
-{
+export namespace asm {
     export const code:Code = X64Assembler.prototype;
     defaultOperationSize.set(code.call_rp, OperationSize.qword);
     defaultOperationSize.set(code.jmp_rp, OperationSize.qword);

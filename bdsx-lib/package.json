@@ -11,6 +11,7 @@
         "preinstall": "cd ../if-tsb & npm i"
     },
     "dependencies": {
+        "alert-sound-notify": "^0.0.8",
         "blessed": "^0.1.81",
         "chokidar": "^2.1.8",
         "colors": "^1.4.0",

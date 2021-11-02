@@ -12,14 +12,14 @@ export namespace mcglobal {
 
     export function init():void {
         const serverInstance = asmcode.serverInstance.as(ServerInstance);
-        Object.defineProperty(mcglobal, 'serverInstance', serverInstance);
-        Object.defineProperty(mcglobal, 'networkHandler', serverInstance.networkHandler);
+        Object.defineProperty(mcglobal, 'serverInstance', {value:serverInstance});
+        Object.defineProperty(mcglobal, 'networkHandler', {value:serverInstance.networkHandler});
         const mc = serverInstance.minecraft;
-        Object.defineProperty(mcglobal, 'minecraft', mc);
-        Object.defineProperty(mcglobal, 'level', mc.getLevel().as(ServerLevel));
+        Object.defineProperty(mcglobal, 'minecraft', {value:mc});
+        Object.defineProperty(mcglobal, 'level', {value:mc.getLevel().as(ServerLevel)});
         const commands = mc.getCommands();
-        Object.defineProperty(mcglobal, 'commands', commands);
-        Object.defineProperty(mcglobal, 'commandRegistry', commands.getRegistry());
+        Object.defineProperty(mcglobal, 'commands', {value:commands});
+        Object.defineProperty(mcglobal, 'commandRegistry', {value:commands.getRegistry()});
     }
 }
 

@@ -1,11 +1,10 @@
 import asmcode = require("../asm/asmcode");
 import { Register } from "../assembler";
-import { BlockPos, Vec2, Vec3 } from "./blockpos";
-import { LoopbackPacketSender } from "./loopbacksender";
 import { AllocatedPointer, StaticPointer, VoidPointer } from "../core";
 import { CxxVector, CxxVectorToArray } from "../cxxvector";
 import { makefunc } from "../makefunc";
 import { mce } from "../mce";
+import { mcglobal } from "../mcglobal";
 import { bin64_t, bool_t, CxxString, CxxStringWith8Bytes, float32_t, int16_t, int32_t, int64_as_float_t, int8_t, NativeType, uint16_t, uint32_t, uint8_t, void_t } from "../nativetype";
 import { CxxStringWrapper, Wrapper } from "../pointer";
 import { SharedPtr } from "../sharedpointer";
@@ -13,6 +12,7 @@ import { Abilities, Ability } from "./abilities";
 import { Actor, ActorDamageSource, ActorDefinitionIdentifier, ActorRuntimeID, ActorUniqueID, DimensionId, ItemActor } from "./actor";
 import { AttributeId, AttributeInstance, BaseAttributeMap } from "./attribute";
 import { Block, BlockLegacy, BlockSource } from "./block";
+import { BlockPos, Vec2, Vec3 } from "./blockpos";
 import { MinecraftCommands } from "./command";
 import { CommandName } from "./commandname";
 import { OnHitSubcomponent } from "./components";
@@ -25,6 +25,7 @@ import { GameRule, GameRuleId, GameRules } from "./gamerules";
 import { HashedString } from "./hashedstring";
 import { ComponentItem, InventoryAction, InventorySource, InventoryTransaction, InventoryTransactionItemGroup, Item, ItemStack, NetworkItemStackDescriptor, PlayerInventory } from "./inventory";
 import { ActorFactory, AdventureSettings, BlockPalette, Level, LevelData, ServerLevel, TagRegistry } from "./level";
+import { LoopbackPacketSender } from "./loopbacksender";
 import { CompoundTag } from "./nbt";
 import { networkHandler, NetworkHandler, NetworkIdentifier, ServerNetworkHandler } from "./networkidentifier";
 import { ExtendedStreamReadResult, Packet } from "./packet";
@@ -37,8 +38,6 @@ import { DisplayObjective, IdentityDefinition, Objective, ObjectiveCriteria, Sco
 import { DedicatedServer, Minecraft, Minecraft$Something, ScriptFramework, serverInstance, ServerInstance, VanilaGameModuleServer, VanilaServerGameplayEventListener } from "./server";
 import { SerializedSkin } from "./skin";
 import { BinaryStream } from "./stream";
-import { mcglobal } from "../mcglobal";
-import { Mob } from "../minecraft";
 
 // avoiding circular dependency
 

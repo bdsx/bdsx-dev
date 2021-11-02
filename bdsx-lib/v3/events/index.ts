@@ -4,10 +4,9 @@ import type { NativePointer } from "../../core";
 import { Event } from "../../eventtarget";
 import { MinecraftPacketIds, NetworkIdentifier, Packet } from "../../minecraft";
 import { remapStack } from "../../source-map-support";
-import type { EntityCreatedEvent } from "../entity";
 import type { BlockDestroyEvent, BlockPlaceEvent, CampfireTryDouseFire, CampfireTryLightFire, FarmlandDecayEvent, PistonMoveEvent } from "./blockevent";
 import type { CommandEvent } from "./commandevent";
-import type { EntityDieEvent, EntityHeathChangeEvent, EntityHurtEvent, EntitySneakEvent, EntityStartRidingEvent, EntityStopRidingEvent, SplashPotionHitEvent } from "./entityevent";
+import type { EntityCreateEvent, EntityDieEvent, EntityHeathChangeEvent, EntityHurtEvent, EntitySneakEvent, EntityStartRidingEvent, EntityStopRidingEvent, SplashPotionHitEvent } from "./entityevent";
 import type { LevelExplodeEvent, LevelSaveEvent, LevelTickEvent, LevelWeatherChangeEvent } from "./levelevent";
 import type { ObjectiveCreateEvent, QueryRegenerateEvent, ScoreAddEvent, ScoreRemoveEvent, ScoreResetEvent, ScoreSetEvent } from "./miscevent";
 import type { PlayerAttackEvent, PlayerChatEvent, PlayerCritEvent, PlayerDisconnectEvent, PlayerDropItemEvent, PlayerInventoryChangeEvent, PlayerJoinEvent, PlayerLevelUpEvent, PlayerLoginEvent, PlayerPickupItemEvent, PlayerRespawnEvent, PlayerStartSwimmingEvent, PlayerUseItemEvent } from "./playerevent";
@@ -70,7 +69,9 @@ export namespace events {
     /** Cancellable but the client is still exiting though it will automatically ride again after rejoin */
     export const entityStopRiding:Event<(event: EntityStopRidingEvent) => void | CANCEL> = new Event;
     /** Not cancellable */
-    export const entityCreated:Event<(event: EntityCreatedEvent) => void> = new Event;
+    export const entityCreated:Event<(event: EntityCreateEvent) => void> = new Event;
+    /** Not cancellable */
+    export const entityDeleted:Event<(event: EntityCreateEvent) => void> = new Event;
     /** Cancellable */
     export const splashPotionHit:Event<(event: SplashPotionHitEvent) => void | CANCEL> = new Event;
 

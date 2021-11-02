@@ -86,14 +86,16 @@ const tasks:Record<string, ()=>(Promise<void>|void)> = {
     },
     async tsc():Promise<void> {
         // bdsx tsc build
-        const srcSet = new Set<string>();
         const destSet = new Set<string>();
         const tsconfig = bundle.getTsConfig() || {};
         const parsed = ts.parseJsonConfigFileContent(tsconfig, ts.sys, process.cwd());
+        parsed.options.rootDir = path.resolve('.');
 
         const compilerHost = ts.createIncrementalCompilerHost(parsed.options);
         compilerHost.writeFile = (file, contents)=>{
-            if (!destSet.has(fsutil.replaceExt(file, '.ts'))) return;
+            if (!destSet.has(fsutil.replaceExt(file, '.ts'))) {
+                return;
+            }
             fs.writeFileSync(file, contents);
         };
 
@@ -105,13 +107,9 @@ const tasks:Record<string, ()=>(Promise<void>|void)> = {
             '!node_modules/**/*',
             '!v3/**/*',
             '!tools/**/*',
-            '!externs/**/*',
-            '!minecraft.d.ts',
+            '!externs/**/*'
         ], async(files)=>{
             const apathes = files.files.map(file=>file.apath);
-            for (const apath of apathes) {
-                srcSet.add(apath.replace(/\\/g, '/'));
-            }
             for (const file of files.dest(path.resolve('../bdsx/bdsx')).files) {
                 destSet.add(file.apath.replace(/\\/g, '/'));
             }
@@ -119,7 +117,6 @@ const tasks:Record<string, ()=>(Promise<void>|void)> = {
             program = ts.createSemanticDiagnosticsBuilderProgram(apathes, parsed.options, compilerHost, program);
             const res = program.emit();
             tscompile.report(res.diagnostics);
-            srcSet.clear();
             destSet.clear();
         });
     },

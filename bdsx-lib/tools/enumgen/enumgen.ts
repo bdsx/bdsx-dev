@@ -1,7 +1,7 @@
 
 import path = require('path');
 import { fsutil } from '../../fsutil';
-import { StringLineWriter } from '../../writer/linewriter';
+import { StringLineWriter } from '../writer/linewriter';
 
 export async function enumgen(srcDir:string):Promise<{js:string, dts:string}> {
     let comment:string|null = null;

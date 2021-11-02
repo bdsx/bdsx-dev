@@ -29,14 +29,6 @@ declare module "../minecraft" {
          * (See enchantability on https://minecraft.fandom.com/wiki/Enchanting_mechanics)
          */
         getEnchantValue(): number;
-
-        getItemSafe():Item|null;
-
-        getAmount():number;
-        setAmount(amount:number):void;
-        getItemId():ItemId;
-
-        isBlock():boolean;
     }
 
     namespace ItemStack {
@@ -62,28 +54,3 @@ ItemStack.abstract({
     // something at 0x50
     canDestroyList:[CxxVector.make(BlockLegacy.ref()), 0x58],
 }, 0x89);
-
-ItemStack.prototype.getAmount = function():number {
-    return this.amount;
-};
-ItemStack.prototype.setAmount = function(amount:number):void {
-    this.amount = amount;
-};
-ItemStack.prototype.getItemSafe = function():Item|null {
-    if (this.isNull()) {
-        return null;
-    }
-    return this.getItem();
-};
-ItemStack.prototype.getItemId = function():ItemId {
-    const item = this.getItem();
-    if (item != null) {
-        const Name = item.getCommandName();
-        if (Name.includes(':')) return Name as any;
-        else return 'minecraft:' + Name as any;
-    }
-    return 'minecraft:air';
-};
-ItemStack.prototype.isBlock = function():boolean {
-    return this.vftable === Block.__vftable;
-};

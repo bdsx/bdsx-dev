@@ -21,6 +21,7 @@ Object.freeze(emptyOpts);
 
 export function hook<T extends AnyFunction>(nf:T|null):hook.Tool<unknown, T, EmptyOpts>;
 export function hook<THIS, NAME extends keyof THIS>(nf:{name:string, prototype:THIS}|null, name:NAME):hook.Tool<THIS, ShouldFunction<THIS[NAME]>, EmptyOpts>;
+export function hook(ptr:VoidPointer):hook.PtrTool;
 
 /**
  * @returns returns 'hook.fail' if it failed.
@@ -43,7 +44,7 @@ export function hook(nf:{name:string, prototype:any}|AnyFunction|VoidPointer|nul
     } else {
         name = '[Native Function]';
         if (nf instanceof VoidPointer) {
-            return new hook.PtrTool(name, nf.add());
+            return new hook.PtrTool(name, nf);
         }
         thisType = null;
         if (!(nf instanceof Function)) throw Error(`this is not a function`);
@@ -78,12 +79,10 @@ export namespace hook {
         callOriginal?:boolean;
     }
     export class PtrTool {
-
         private _subject?:string;
-        private _offset?:number;
+        protected _offset?:number;
 
-
-        constructor(public name:string, private ptr:NativePointer) {
+        constructor(public name:string, private readonly ptr:VoidPointer) {
         }
 
         /**
@@ -105,11 +104,10 @@ export namespace hook {
         }
 
         getAddress():NativePointer {
-            return this.ptr;
+            return this.ptr.add(this._offset);
         }
 
         /**
-         * @param offset offset from target
          * @param ptr target pointer
          * @param originalCode old codes
          * @param ignoreArea pairs of offset, ignores partial bytes.
@@ -157,17 +155,16 @@ export namespace hook {
          * @param ignoreArea pairs of offset, ignores partial bytes.
          */
         check(originalCode:number[], ignoreArea?:number[]|null):boolean {
-            return this._check(this.getAddress(), originalCode, ignoreArea);
+            const ptr = this.getAddress();
+            return this._check(ptr, originalCode, ignoreArea);
         }
 
         /**
-         * @param offset offset from target
          * @param originalCode bytes comparing before hooking
          * @param ignoreArea pair offsets to ignore of originalCode
          */
         writeNop(originalCode:number[], ignoreArea?:number[]|null):void {
             const ptr = this.getAddress();
-            if (this._offset != null) ptr.move(this._offset);
             const size = originalCode.length;
             const unlock = new MemoryUnlocker(ptr, size);
             if (this._check(ptr, originalCode, ignoreArea)) {
@@ -176,14 +173,13 @@ export namespace hook {
             unlock.done();
         }
 
-        write(asm:X64Assembler|Uint8Array, offset?:number|null, originalCode?:number[]|null, ignoreArea?:number[]|null):void {
+        write(asm:X64Assembler|Uint8Array, originalCode?:number[]|null, ignoreArea?:number[]|null):void {
             const ptr = this.getAddress();
-            if (this._offset != null) ptr.move(this._offset);
             const buffer = asm instanceof Uint8Array ? asm : asm.buffer();
             const unlock = new MemoryUnlocker(ptr, buffer.length);
             if (originalCode != null) {
                 if (originalCode.length < buffer.length) {
-                    console.error(colors.red(`${this._subject || this.name}: ${nameWithOffset(this.name, offset)}: writing space is too small`));
+                    console.error(colors.red(`${this._subject || this.name}: ${nameWithOffset(this.name, this._offset)}: writing space is too small`));
                     unlock.done();
                     return;
                 }
@@ -209,6 +205,12 @@ export namespace hook {
     export class Tool<THIS, T extends AnyFunction, OPTS extends Options> extends dnf.Tool<THIS> {
         constructor(nf:T, name:string, thisType:Type<THIS>|null, private opts:OPTS) {
             super(nf, name, thisType);
+        }
+
+        getAddress():NativePointer {
+            let v = this.getInfo()[0];
+            if (this._offset != null) v += this._offset;
+            return dll.current.add(v);
         }
 
         options<NOPTS extends Options>(opts:NOPTS):Tool<THIS, T, NOPTS> {
@@ -283,7 +285,7 @@ export namespace hook {
         }
 
         call(callback:Callback<THIS, T, OPTS>):OriginalFunc<T, OPTS> {
-            const [_, paramTypes, returnType, opts] = dnf.getOverloadInfo(this.nf);
+            const [_, paramTypes, returnType, opts] = this.getInfo();
 
             const original = this.raw(original=>{
                 const nopts:MakeFuncOptions<any> = {};

@@ -1,8 +1,12 @@
 import { events } from ".";
+import asmcode = require("../../asm/asmcode");
 import { CANCEL } from "../../common";
 import { VoidPointer } from "../../core";
 import { hook } from "../../hook";
-import { Actor, ActorDamageSource, EventResult, HealthAttributeDelegate, Mob, ProjectileComponent, ScriptServerActorEventListener, SplashPotionEffectSubcomponent } from "../../minecraft";
+import { makefunc } from "../../makefunc";
+import { Actor, ActorDamageSource, EventResult, HealthAttributeDelegate, Level, Mob, ProjectileComponent, ScriptServerActorEventListener, SplashPotionEffectSubcomponent } from "../../minecraft";
+import { removeActorReference } from "../../minecraft_impl/actor";
+import { NativeType, void_t } from "../../nativetype";
 import { _tickCallback } from "../../util";
 import { Entity } from "../entity";
 
@@ -135,6 +139,11 @@ export class SplashPotionHitEvent extends EntityEvent{
     }
 }
 
+export class EntityCreateEvent extends EntityEvent {
+}
+export class EntityDeletedEvent extends EntityEvent {
+}
+
 events.entityHurt.setInstaller(()=>{
     function onEntityHurt(this: Actor, actorDamageSource: ActorDamageSource, damage: number, knock: boolean, ignite: boolean):boolean {
         const event = new EntityHurtEvent(
@@ -218,3 +227,22 @@ events.splashPotionHit.setInstaller(()=>{
     }
     const _onSplashPotionHit = hook(SplashPotionEffectSubcomponent, 'doOnHitEffect').call(onSplashPotionHit);
 });
+
+function onEntityCreated(this:ScriptServerActorEventListener, actor:Actor):EventResult {
+    const event = new EntityCreateEvent(actor);
+    events.entityCreated.fire(event);
+    _tickCallback();
+    return _onEntityCreated.call(this, actor);
+}
+const _onEntityCreated = hook(ScriptServerActorEventListener, 'onActorCreated').call(onEntityCreated);
+
+const Level$removeEntityReferences = hook(Level, 'removeEntityReferences').call(function(actor, b){
+    const event = new EntityDeletedEvent(actor);
+    events.entityDeleted.fire(event);
+    removeActorReference(actor);
+    _tickCallback();
+    return Level$removeEntityReferences.call(this, actor, b);
+});
+
+asmcode.removeActor = makefunc.np(removeActorReference, void_t, null, Actor);
+hook(Actor, NativeType.dtor).options({callOriginal: true}).raw(asmcode.actorDestructorHook);

@@ -5,7 +5,6 @@ import type { Dimension as Dimension } from './bds/dimension';
 import { ServerLevel } from './bds/level';
 import { serverInstance } from './bds/server';
 import { capi } from './capi';
-import { DimensionId } from './enums';
 import { events } from './event';
 import { makefunc } from './makefunc';
 import { nativeClass, nativeField } from './nativeclass';
@@ -110,7 +109,7 @@ export class CustomCommandFactory {
 // executer
 
 const commandVersion = CommandVersion.CurrentVersion;
-const commandContextRefCounterVftable = minecraft.std._Ref_count_obj2.make(minecraft.CommandContext).__vftable;
+const commandContextRefCounterVftable = minecraft.std._Ref_count_obj2.make(minecraft.CommandContext).addressof_vftable;
 const CommandContextSharedPtr = SharedPtr.make(CommandContext);
 
 function createCommandContext(command:CxxString, commandOrigin:CommandOrigin):SharedPtr<CommandContext> {
@@ -120,7 +119,7 @@ function createCommandContext(command:CxxString, commandOrigin:CommandOrigin):Sh
     return sharedptr;
 }
 
-function createServerCommandOrigin(name:CxxString, level:ServerLevel, permissionLevel:number, dimension:DimensionId):CommandOrigin {
+function createServerCommandOrigin(name:CxxString, level:ServerLevel, permissionLevel:number, dimension:minecraft.DimensionId):CommandOrigin {
     const origin = capi.malloc(ServerCommandOrigin[NativeType.size]).as(ServerCommandOrigin);
     origin.constructWith(name, level, permissionLevel, dimension);
     return origin;

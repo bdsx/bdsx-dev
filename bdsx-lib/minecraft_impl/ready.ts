@@ -1,14 +1,29 @@
-let resolver:(()=>void)|null = null;
+
+let callbacks:((()=>any)[])|null = [];
+
+export function minecraftTsReady(callback:()=>any):void {
+    if (callbacks === null) {
+        callback();
+        return;
+    }
+    callbacks.push(callback);
+}
 
 export namespace minecraftTsReady {
-    export const promise = new Promise<void>(resolve=>{
-        resolver = resolve;
-    });
+    export function isReady():boolean {
+        return callbacks === null;
+    }
 
+    /**
+     * @internal
+     */
     export function resolve():void {
-        if (resolver === null) throw Error('minecraftTsReady is already resolved');
-        const r = resolver;
-        resolver = null;
-        r();
+        if (callbacks === null) throw Error('minecraftTsReady is already resolved');
+        const cbs = callbacks;
+        callbacks = null;
+
+        for (const callback of cbs) {
+            callback();
+        }
     }
 }

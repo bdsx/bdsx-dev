@@ -73,7 +73,7 @@ function patchForStdio():void {
         console.log(line);
     }, void_t, {onError:asmcode.jsend_returnZero}, int32_t, StaticPointer, int64_as_float_t);
     //  asmcode.bedrockLogNp = asmcode.jsend_returnZero;
-    hook(minecraft.BedrockLogOut).write(asm().jmp64(asmcode.logHook, Register.rax), null, null, 'hook-bedrock-log');
+    hook(minecraft.BedrockLogOut).subject('hook-bedrock-log').write(asm().jmp64(asmcode.logHook, Register.rax));
 
     asmcode.CommandOutputSenderHookCallback = makefunc.np((bytes, ptr)=>{
         // void(*callback)(const char* log, size_t size)
@@ -83,21 +83,25 @@ function patchForStdio():void {
             console.log(line);
         }
     }, void_t, {onError: asmcode.jsend_returnZero}, int64_as_float_t, StaticPointer);
-    hook(minecraft.CommandOutputSender, 'send').patch(asmcode.CommandOutputSenderHook, Register.rax, true, [
+    hook(minecraft.CommandOutputSender, 'send')
+    .subject('hook-command-output').offset(0x217)
+    .patch(asmcode.CommandOutputSenderHook, Register.rax, true, [
         0xE8, 0xFF, 0xFF, 0xFF, 0xFF,               // call <bedrock_server.class std::basic_ostream<char,struct std::char_traits<char> > & __ptr64 __cdecl std::_Insert_string<char,struct std::char_traits<char>,unsigned __int64>(class std::basic_ostream<char,struct std::char_traits<char> > & __ptr64,char const * __ptr64 const,uns>
         0x48, 0x8D, 0x15, 0xFF, 0xFF, 0xFF, 0xFF,   // lea rdx,qword ptr ds:[<class std::basic_ostream<char,struct std::char_traits<char> > & __ptr64 __cdecl std::flush<char,struct std::char_traits<char> >(class std::basic_ostream<char,struct std::char_traits<char> > & __ptr64)>]
         0x48, 0x8B, 0xC8,                           // mov rcx,rax
         0xFF, 0x15, 0xFF, 0xFF, 0xFF, 0xFF,         // call qword ptr ds:[<&??5?$basic_istream@DU?$char_traits@D@std@@@std@@QEAAAEAV01@P6AAEAV01@AEAV01@@Z@Z>]
-    ], 0x217, 'hook-command-output', [1, 5, 8, 12, 17, 21]);
+    ], [1, 5, 8, 12, 17, 21]);
 
 
     // hook stdin
     asmcode.commandQueue = commandQueue;
     asmcode.MultiThreadQueueTryDequeue = MultiThreadQueue.tryDequeue;
-    hook(minecraft.ConsoleInputReader, 'getLine').patch(asmcode.ConsoleInputReader_getLine_hook, Register.rax, false, [
+    hook(minecraft.ConsoleInputReader, 'getLine')
+    .subject('hook-stdin-command')
+    .patch(asmcode.ConsoleInputReader_getLine_hook, Register.rax, false, [
         0xE9, 0x3B, 0xF6, 0xFF, 0xFF,  // jmp SPSCQueue::tryDequeue
         0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC // int3 ...
-    ], null, 'hook-stdin-command', [3, 7, 21, 25, 38, 42]);
+    ], [3, 7, 21, 25, 38, 42]);
 
     // remove original stdin thread
     const justReturn = asm().ret().buffer();
@@ -126,7 +130,7 @@ function _launch(asyncResolve:()=>void):void {
     }
 
     // // call game thread entry
-    asmcode.gameThreadInner = minecraft.lambda_8914ed82e3ef519cb2a85824fbe333d8.operator_call;
+    asmcode.gameThreadInner = minecraft.lambda_8914ed82e3ef519cb2a85824fbe333d8.addressof_operator_call;
     asmcode.free = dll.ucrtbase.free.pointer;
     asmcode.SetEvent = dll.kernel32.SetEvent.pointer;
 
@@ -135,26 +139,32 @@ function _launch(asyncResolve:()=>void):void {
     asmcode._Cnd_do_broadcast_at_thread_exit = dll.msvcp140._Cnd_do_broadcast_at_thread_exit;
 
     // 'std::thread::_Invoke<std::tuple<<lambda_8914ed82e3ef519cb2a85824fbe333d8> >,0>'
-    const invoke = minecraft.std.thread._Invoke(minecraft.std.tuple.make([minecraft.lambda_8914ed82e3ef519cb2a85824fbe333d8, 0]));
-    hook(invoke).patch(
+    const invoke = minecraft.std.thread.get_addressof__Invoke(minecraft.std.tuple.make([minecraft.lambda_8914ed82e3ef519cb2a85824fbe333d8]));
+    hook(invoke).subject('hook-game-thread').offset(6).patch(
         asmcode.gameThreadHook, // original depended
         Register.rax, true, [
             0x48, 0x8B, 0xD9, // mov rbx,rcx
             0xE8, 0xFF, 0xFF, 0xFF, 0xFF, // call <bedrock_server.<lambda_8914ed82e3ef519cb2a85824fbe333d8>::operator()>
             0xE8, 0xFF, 0xFF, 0xFF, 0xFF, // call <bedrock_server._Cnd_do_broadcast_at_thread_exit>
-        ], 6, 'hook-game-thread', [4, 8, 9, 13]
+        ], [4, 8, 9, 13]
     );
     // get server instance
-    hook(minecraft.ServerInstance, NativeType.ctor).raw(asmcode.ServerInstance_ctor_hook, {callOriginal: true});
+    hook(minecraft.ServerInstance, 'constructWith')
+    .options({callOriginal: true})
+    .raw(asmcode.ServerInstance_ctor_hook);
 
     // it removes errors when run commands on shutdown.
-    hook(minecraft.ScriptEngine, NativeType.dtor).writeNop([
+    hook(minecraft.ScriptEngine, NativeType.dtor)
+    .subject('skip-command-list-destruction').offset(0x7d)
+    .writeNop([
         0x48, 0x8D, 0x4B, 0x78,      // lea rcx,qword ptr ds:[rbx+78]
         0xE8, 0x6A, 0xF5, 0xFF, 0xFF // call <bedrock_server.public: __cdecl std::deque<struct ScriptCommand,class std::allocator<struct ScriptCommand> >::~deque<struct ScriptCommand,class std::allocator<struct ScriptCommand> >(void) __ptr64>
-    ], 0x7d, 'skip-command-list-destruction', [5, 9]);
+    ], [5, 9]);
 
     // enable script
-    hook(minecraft.MinecraftServerScriptEngine, 'onServerThreadStarted').writeNop([
+    hook(minecraft.MinecraftServerScriptEngine, 'onServerThreadStarted')
+    .subject('force-enable-script').offset(0x38)
+    .writeNop([
         0xE8, 0xFF, 0xFF, 0xFF, 0xFF,       // call <bedrock_server.public: static bool __cdecl ScriptEngine::isScriptingEnabled(void)>
         0x84, 0xC0,                         // test al,al
         0x0F, 0x84, 0xFF, 0xFF, 0xFF, 0xFF, // je bedrock_server.7FF7345226F3
@@ -167,7 +177,7 @@ function _launch(asyncResolve:()=>void):void {
         0xE8, 0xFF, 0xFF, 0xFF, 0xFF,       // call <bedrock_server.public: bool __cdecl Experiments::Scripting(void)const __ptr64>
         0x84, 0xC0,                         // test al,al
         0x0F, 0x84, 0x06, 0x01, 0x00, 0x00, //je bedrock_server.7FF7C1CE94EF
-    ], 0x38, 'force-enable-script', [1, 5, 9, 13, 16, 20, 29, 33, 37, 41]);
+    ], [1, 5, 9, 13, 16, 20, 29, 33, 37, 41]);
 
     patchForStdio();
 
@@ -203,7 +213,9 @@ function _launch(asyncResolve:()=>void):void {
     asmcode.cgateNodeLoop = cgate.nodeLoop;
     asmcode.updateEvTargetFire = makefunc.np(()=>bdsx.events.serverUpdate.fire(), void_t, null);
 
-    hook(minecraft.lambda_8914ed82e3ef519cb2a85824fbe333d8.operator_call).patch(
+    hook(minecraft.lambda_8914ed82e3ef519cb2a85824fbe333d8.addressof_operator_call)
+    .subject('update-hook').offset(0x5f3)
+    .patch(
         asmcode.updateWithSleep, Register.rcx, true, [
             0xE8, 0xFF, 0xFF, 0xFF, 0xFF,  // call <bedrock_server._Query_perf_frequency>
             0x48, 0x8B, 0xD8,  // mov rbx,rax
@@ -222,10 +234,12 @@ function _launch(asyncResolve:()=>void):void {
             0x48, 0x8D, 0x4C, 0x24, 0x20,  // lea rcx,qword ptr ss:[rsp+20]
             0xE8, 0xFF, 0xFF, 0xFF, 0xFF,  // call <bedrock_server.void __cdecl std::this_thread::sleep_until<struct std::chrono::steady_clock,class std::chrono::duration<__int64,struct std::ratio<1,1000000000> > >(class std::chrono::time_point<struct std::chrono::steady_clock,class std::chrono::duration<__int64,struct s>
             0x90,  // nop
-        ], 0x5f3, 'update-hook', [1, 5, 9, 13, 62, 66]
+        ], [1, 5, 9, 13, 62, 66]
     );
     // hook on script starting
-    hook(minecraft.ScriptEngine, 'startScriptLoading').call(function(){
+    hook(minecraft.ScriptEngine, 'startScriptLoading')
+    .options({callOriginal: true, noOriginal:true})
+    .call(function(){
         try {
             cgate.nodeLoopOnce();
 
@@ -244,15 +258,17 @@ function _launch(asyncResolve:()=>void):void {
             bdsx.events.errorFire(err);
             remapAndPrintError(err);
         }
-    }, {callOriginal: true, noOriginal:true});
+    });
 
-    hook(minecraft.ScriptEngine, 'shutdown').call(()=>{
+    hook(minecraft.ScriptEngine, 'shutdown')
+    .options({callOriginal: true, noOriginal: true})
+    .call(()=>{
         try {
             bdsx.events.serverStop.fire();
         } catch (err) {
             remapAndPrintError(err);
         }
-    }, {callOriginal: true, noOriginal: true});
+    });
 
     // keep ScriptEngine variables. idk why it needs.
     hook(minecraft.MinecraftServerScriptEngine, 'onServerUpdateEnd').write(asm().ret());
@@ -270,8 +286,7 @@ function sessionIdGrabber(text: string): void {
 }
 bdsx.events.serverLog.on(sessionIdGrabber);
 
-export namespace bedrockServer
-{
+export namespace bedrockServer {
     export let sessionId: string;
 
     export function withLoading():Promise<void> {

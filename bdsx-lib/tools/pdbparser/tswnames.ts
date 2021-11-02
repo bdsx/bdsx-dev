@@ -5,7 +5,6 @@ export const tswNames = {
     this: new tsw.NameProperty('this'),
     add: new tsw.NameProperty('add'),
     overloads: new tsw.NameProperty('overloads'),
-    definePointedProperty: new tsw.NameProperty('definePointedProperty'),
     make: new tsw.NameProperty('make'),
     get: new tsw.NameProperty('get'),
     constructWith:new tsw.NameProperty('constructWith'),
@@ -15,4 +14,7 @@ export const tswNames = {
     ID: new tsw.NameProperty('ID'),
     idMap: new tsw.NameProperty('idMap'),
     T: new tsw.TypeName('T'),
+    $F: new tsw.Name('$F'),
+    $O: new tsw.Name('$O'),
+    $C: new tsw.Name('$C'),
 };

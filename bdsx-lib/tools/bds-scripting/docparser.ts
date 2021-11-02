@@ -1,6 +1,6 @@
 import path = require('path');
-import { FileWriter } from '../../writer/filewriter';
-import { StringLineWriter } from '../../writer/linewriter';
+import { FileWriter } from '../writer/filewriter';
+import { StringLineWriter } from '../writer/linewriter';
 import { HtmlSearcher, htmlutil } from './htmlutil';
 import { styling } from './styling';
 import { DocField, DocFixItem, DocMethod, DocType as DocType } from './type';

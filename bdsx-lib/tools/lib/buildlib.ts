@@ -47,9 +47,12 @@ export namespace buildlib {
         basedir = path.resolve(basedir);
 
         let reserved:Set<string>|null = null;
+        let buildingTimer:NodeJS.Timer|null = null;
         let building = false;
 
         async function runBuild():Promise<void> {
+            buildingTimer = null;
+            building = true;
             while (reserved !== null) {
                 buildlib.beginPoint(taskName, runBuild);
                 try {
@@ -72,12 +75,18 @@ export namespace buildlib {
         }
 
         function onChange(path:string):void {
+            let resetTimer = false;
             if (reserved === null) reserved = new Set;
+            else resetTimer = reserved.has(path);
             reserved.add(path);
 
             if (!building) {
-                building = true;
-                setTimeout(runBuild, WAIT_WATCH);
+                if (buildingTimer === null) {
+                    buildingTimer = setTimeout(runBuild, WAIT_WATCH);
+                } else if (resetTimer) {
+                    clearTimeout(buildingTimer);
+                    buildingTimer = setTimeout(runBuild, WAIT_WATCH);
+                }
             }
         }
 

@@ -1,7 +1,8 @@
 import { events } from ".";
 import { CANCEL } from "../../common";
 import { hook } from "../../hook";
-import { Actor, BuildPlatform, CompletedUsingItemPacket, ConnectionRequest, Container, ExtendedCertificate, ItemActor, ItemStack, LoginPacket, MinecraftPacketIds, Player as PlayerRaw } from "../../minecraft";
+import { Actor, BuildPlatform, CompletedUsingItemPacket, ConnectionRequest, Container, ExtendedCertificate, ItemActor, ItemStack, LoginPacket, MinecraftPacketIds, NetworkHandler, Player as PlayerRaw } from "../../minecraft";
+import { removeNetworkIdentifierReference } from "../../minecraft_impl/networkidentifier";
 import { int32_t } from "../../nativetype";
 import { _tickCallback } from "../../util";
 import { Entity } from "../entity";
@@ -298,6 +299,18 @@ events.playerPickupItem.setInstaller(()=>{
     const _onPlayerPickupItem = hook(PlayerRaw, "take").call(onPlayerPickupItem);
 });
 
+hook(NetworkHandler, 'onConnectionClosed').options({callOriginal: true}).call(ni=>{
+    const player = Player.fromNetworkIdentifier(ni);
+    if (player !== null) {
+        const ev = new PlayerDisconnectEvent(player);
+        events.playerDisconnect.fire(ev);
+        _tickCallback();
+    }
+
+    // ni is used after onConnectionClosed. on some message processings.
+    // timeout for avoiding the re-allocation
+    removeNetworkIdentifierReference(ni);
+});
 events.packetAfter(MinecraftPacketIds.Login).on((ptr, ni) => {
     const connreq = ptr.connreq;
     if (connreq === null) return; // wrong client

@@ -1,7 +1,7 @@
 
 import asmcode = require('./asm/asmcode');
 import { abstract } from './common';
-import { AllocatedPointer, cgate, NativePointer, VoidPointer, VoidPointerConstructor } from './core';
+import { AllocatedPointer, cgate, NativePointer, pdb, StaticPointer, VoidPointer, VoidPointerConstructor } from './core';
 import { dllraw } from './dllraw';
 import { FunctionFromTypes_js, makefunc, MakeFuncOptions, ParamType } from './makefunc';
 import { bool_t, int32_t, int64_as_float_t, void_t } from './nativetype';
@@ -122,6 +122,7 @@ NativeModule.prototype.getProcAddressByOrdinal = makefunc.js(cgate.GetProcAddres
 
 export namespace dll {
     export const current = NativeModule.get(null); // get the exe module, it's the address base of RVA
+    export const base = current.as(StaticPointer);
     export namespace ntdll {
         export const module = NativeModule.get('ntdll.dll');
 
@@ -174,6 +175,8 @@ export namespace dll {
         export const std_cin = module.getProcAddress("?cin@std@@3V?$basic_istream@DU?$char_traits@D@std@@@1@A");
     }
 }
+
+pdb.close();
 
 const RtlCaptureContext = dll.kernel32.module.getProcAddress('RtlCaptureContext');
 asmcode.RtlCaptureContext = RtlCaptureContext;

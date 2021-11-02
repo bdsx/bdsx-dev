@@ -1,5 +1,6 @@
 import type { NetworkIdentifier as NetworkIdentifierOld } from "./bds/networkidentifier";
-import { MinecraftPackets, networkHandler, NetworkIdentifier, Packet } from "./minecraft";
+import { mcglobal } from "./mcglobal";
+import { MinecraftPackets, NetworkIdentifier, Packet } from "./minecraft";
 import { CxxStringWrapper } from "./pointer";
 import { SharedPtr } from "./sharedpointer";
 import { AbstractWriter } from "./writer/abstractstream";
@@ -71,6 +72,6 @@ export class RawPacket extends AbstractWriter {
 
     sendTo(target:NetworkIdentifier|NetworkIdentifierOld):void {
         if (this.packet === null) throw Error('packetId is not defined. Please set it on constructor');
-        networkHandler._sendInternal(target as any, this.packet, this.data);
+        mcglobal.networkHandler._sendInternal(target as any, this.packet, this.data);
     }
 }

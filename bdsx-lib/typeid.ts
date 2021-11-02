@@ -1,21 +1,14 @@
-import { NativePointer } from "./core";
 import { dnf } from "./dnf";
 import { typeid_t, type_id } from "./minecraft";
 import { NativeClass } from "./nativeclass";
-import { Type, uint16_t } from "./nativetype";
-import { Wrapper } from "./pointer";
+import { Type } from "./nativetype";
 
-const counterWrapper = Symbol();
 const typeidmap = Symbol();
-
-const IdCounter = Wrapper.make(uint16_t);
-type IdCounter = Wrapper<uint16_t>;
 
 /**
  * dummy class for typeid
  */
 export class TypeIdCounter extends NativeClass {
-    static [counterWrapper]:IdCounter;
     static readonly [typeidmap] = new WeakMap<Type<any>, typeid_t<any>>();
 
     static makeId<T, BASE extends TypeIdCounter>(this:typeof TypeIdCounter&(new()=>BASE), type:Type<T>):typeid_t<BASE> {
@@ -25,8 +18,8 @@ export class TypeIdCounter extends NativeClass {
             return typeid;
         }
 
-        const counter = this[counterWrapper];
-        if (counter.value === 0) throw Error('Cannot make type_id before launch');
+        const TypeIdClass = typeid_t.make(this);
+        if (TypeIdClass.count === 0) throw Error('Cannot make type_id before launch');
         const getTypeId = dnf(type_id).getByTemplates(null, this, type);
 
         if (getTypeId != null) {
@@ -35,7 +28,7 @@ export class TypeIdCounter extends NativeClass {
             return newid;
         } else {
             const newid = new typeid_t<BASE>(true);
-            newid.id = counter.value++;
+            newid.id = TypeIdClass.count++;
             map.set(type, newid);
             return newid;
         }

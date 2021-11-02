@@ -1,8 +1,7 @@
 
 import { Bufferable, Encoding, TypeFromEncoding } from "./common";
 
-export interface VoidPointerConstructor
-{
+export interface VoidPointerConstructor {
     new():VoidPointer;
     prototype:VoidPointer;
 
@@ -509,8 +508,7 @@ export declare class MultiThreadQueue extends VoidPointer {
 /**
  * native debug information handlers
  */
-export declare namespace pdb
-{
+export declare namespace pdb {
     export const coreCachePath:string;
 
     export function close():void;
@@ -533,7 +531,6 @@ export declare namespace pdb
      * get symbols from cache.
      * if symbols don't exist in cache. it reads pdb.
      * @returns 'out' the first parameter.
-     * @deprecated import item from `bdsx/minecraft`. and use `dnf(item).getAddress()`
      */
     export function getList<OLD extends Record<string, any>, KEY extends string, KEYS extends readonly [...KEY[]]>(cacheFilePath:string, out:OLD, names:KEYS, quiet?:boolean, undecorateFlags?:number):{[key in KEYS[number]]: NativePointer} & OLD;
 
@@ -580,8 +577,7 @@ export declare namespace pdb
 /**
  * native error handling
  */
-export declare namespace runtimeError
-{
+export declare namespace runtimeError {
     export function codeToString(code:number):string;
     export function setHandler(handler:(err:RuntimeError)=>void):void;
 
@@ -599,8 +595,7 @@ export declare namespace runtimeError
 	export function addFunctionTable(functionTable:VoidPointer, entryCount:number, baseAddress:VoidPointer):void;
 }
 
-export declare namespace bedrock_server_exe
-{
+export declare namespace bedrock_server_exe {
     export const md5:string;
 
     export const argc: number;
@@ -626,8 +621,7 @@ export declare namespace bedrock_server_exe
     export function forceKill(exitcode:number):never;
 }
 
-export declare namespace uv_async
-{
+export declare namespace uv_async {
     /**
      * init uv_async for asyncCall
      * need to call before using uv_async.call.
@@ -669,8 +663,7 @@ export declare namespace uv_async
     export const post: VoidPointer;
 }
 
-export declare namespace cgate
-{
+export declare namespace cgate {
     export const bdsxCoreVersion:string;
 
     /**
@@ -733,8 +726,7 @@ export declare namespace chakraUtil {
     export function asJsValueRef(value:unknown):VoidPointer;
 }
 
-export declare namespace ipfilter
-{
+export declare namespace ipfilter {
     /**
      * block ip
      * It does not store permanently
@@ -817,8 +809,7 @@ export declare namespace ipfilter
 
 type ErrorListener = (err:Error)=>void;
 
-export declare namespace jshook
-{
+export declare namespace jshook {
     export function init():void;
     /** @deprecated */
     export function init(onError:ErrorListener):void;
@@ -828,8 +819,7 @@ export declare namespace jshook
     export const fireErrorPointer:VoidPointer;
 }
 
-export declare namespace cxxException
-{
+export declare namespace cxxException {
     /**
      * void trycatch(void* param, void(*try)(void* param), void(*catch)(void* param, const char* error));
      */

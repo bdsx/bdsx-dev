@@ -3,6 +3,7 @@ import { AnyFunction } from "./common";
 import { NativePointer, StaticPointer } from "./core";
 import { dll } from "./dll";
 import { FunctionFromTypes_js, makefunc, MakeFuncOptions, ParamType } from "./makefunc";
+import { minecraftTsReady } from "./minecraft_impl/ready";
 import type { Type, UnwrapTypeArrayToArray } from "./nativetype";
 import { arrayEquals } from "./util";
 
@@ -101,7 +102,7 @@ function makeFunctionNativeCall(nf:AnyFunction):AnyFunction {
                 const func = overload[nativeCall] || makeOverloadNativeCall(overload);
                 return func.apply(this, arguments);
             }
-            throw Error('overload not found');
+            throw Error(`overload not found`);
         };
     }
 }
@@ -127,8 +128,8 @@ export namespace dnf {
 
         getVFTableOffset():[number] {
             if (this.thisType === null) throw Error(`this type is not determined`);
-            const vftable:StaticPointer = (this.thisType as any).__vftable;
-            if (vftable == null) throw Error(`${this.thisType.name}.__vftable not found`);
+            const vftable:StaticPointer = (this.thisType as any).addressof_vftable;
+            if (vftable == null) throw Error(`${this.thisType.name}.addressof_vftable not found`);
             const addr = this.getAddress();
             for (let offset=0;offset<0x1000;offset+= 8) {
                 if (vftable.getPointer(offset).equals(addr)) return [offset];
@@ -208,11 +209,28 @@ export namespace dnf {
         }
 
         getAddress():NativePointer {
-            return getAddressOf(this.nf);
+            return dll.current.add(this.getInfo()[Prop.rva]);
         }
 
         getInfo():OverloadInfo {
-            return getOverloadInfo(this.nf);
+            let nf = this.nf;
+            const overloads = nf.overloads;
+            if (overloads != null) {
+                if (overloads.length === 0) {
+                    throw Error(`${this.name} does not have overloads`);
+                } else if (overloads.length >= 2) {
+                    throw Error(`${this.name} has multiple overloads`);
+                }
+                nf = overloads[0];
+            }
+            const info = nf.overloadInfo;
+            if (info == null) {
+                if (!minecraftTsReady.isReady()) {
+                    throw Error(`minecraft.ts is not ready. use minecraftTsReady(callback) for using dnf`);
+                }
+                throw Error(`${this.name} does not have a overload info`);
+            }
+            return info;
         }
 
         getRegistersForParameters():[Register[], FloatRegister[]] {
@@ -249,7 +267,13 @@ export namespace dnf {
 
             for (let i=0;i<overloads.length;i++) {
                 const overload = overloads[i];
-                const info = overload.overloadInfo!;
+                const info = overload.overloadInfo;
+                if (info == null) {
+                    if (!minecraftTsReady.isReady()) {
+                        throw Error(`minecraft.ts is not ready. use minecraftTsReady(callback) for using dnf`);
+                    }
+                    throw Error(`it does not have a overload info`);
+                }
                 const paramTypes2 = info[1];
                 if (arrayEquals(paramTypes2, paramTypes)) {
                     overloads[i] = overload;
@@ -286,9 +310,9 @@ export namespace dnf {
     export type OverloadInfo = [number, makefunc.Paramable[], makefunc.Paramable, MakeFuncOptions<any>|null, unknown[]?];
 
     export function makeOverload():AnyFunction {
-        function nf(this:unknown):any {
+        const nf = 0 || function(this:unknown):any {
             return (nf[nativeCall] || makeOverloadNativeCall(nf)).apply(this, arguments);
-        }
+        };
         return nf;
     }
 
@@ -308,6 +332,9 @@ export namespace dnf {
         }
         const info = nf.overloadInfo;
         if (info == null) {
+            if (!minecraftTsReady.isReady()) {
+                throw Error(`minecraft.ts is not ready. use minecraftTsReady(callback) for using dnf`);
+            }
             throw Error(`it does not have a overload info`);
         }
         return info;
@@ -317,9 +344,9 @@ export namespace dnf {
      * make a deferred native function
      */
     export function make():AnyFunction {
-        function nf(this:unknown):any {
+        const nf = 0 || function(this:unknown):any {
             return (nf[nativeCall] || makeFunctionNativeCall(nf)).apply(this, arguments);
-        }
+        };
         nf.isNativeFunction = true;
         return nf;
     }

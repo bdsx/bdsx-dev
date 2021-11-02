@@ -1,19 +1,100 @@
 import { VoidPointer, VoidPointerConstructor } from "./core";
+import { dll } from "./dll";
 import { FunctionFromTypes_js_without_pointer, makefunc, MakeFuncOptions, ParamType } from "./makefunc";
 import { NativeClass } from "./nativeclass";
 import { int32_t, NativeType, Type } from "./nativetype";
 import { Singleton } from "./singleton";
 
+const specializedList = Symbol('specializedList');
+
+function itemsEquals(items1:ArrayLike<unknown>, items2:ArrayLike<unknown>):boolean {
+    const n = items1.length;
+    if (n !== items2.length) return false;
+    for (let i=0;i<n;i++) {
+        const item1 = items1[i];
+        const item2 = items2[i];
+        if (item1 instanceof Array) {
+            if (!(item2 instanceof Array)) return false;
+            if (!itemsEquals(item1, item2)) return false;
+        } else {
+            if (item1 !== item2) return false;
+        }
+    }
+    return true;
+}
+
+interface TemplateClassConstructor {
+    templates:any[];
+    new():NativeTemplateClass;
+}
+
+function makeTemplateClass(cls:new()=>NativeTemplateClass, items:any[]):TemplateClassConstructor {
+    class SpecializedTemplateClass extends cls {
+        static readonly templates = items;
+    }
+    Object.defineProperty(SpecializedTemplateClass, 'name', {value: `${cls.name}<${items.map(item=>item.name || item.toString()).join(',')}>`});
+    return SpecializedTemplateClass;
+}
 
 export class NativeTemplateClass extends NativeClass {
-    static readonly templates:any[] = [];
-    static make(this:{new():NativeTemplateClass}, ...items:any[]):any{
-        class SpecializedTemplateClass extends (this as {new():NativeTemplateClass}) {
-            static readonly templates = items;
+    static readonly templates:any[];
+
+    static make(this:new()=>NativeTemplateClass, ...items:any[]):any{
+        let list:TemplateClassConstructor[] = (this as any)[specializedList];
+        if (list == null) {
+            (this as any)[specializedList] = list = [];
+        } else {
+            for (const cls of list) {
+                if (itemsEquals(items, cls.templates)) return cls;
+            }
         }
-        Object.defineProperty(SpecializedTemplateClass, 'name', {value: `${this.name}<${items.map(item=>item.name || item.toString()).join(',')}>`});
-        return SpecializedTemplateClass as any;
+        const cls = makeTemplateClass(this, items);
+        list.push(cls);
+        return cls as any;
     }
+}
+
+const baseAddress = dll.base;
+
+export class NativeTemplateVariable<T> {
+    constructor(public readonly type:Type<T>, public readonly rva:number) {
+    }
+
+    get value():T {
+        return this.type[NativeType.getter](baseAddress, this.rva);
+    }
+    set value(v:T) {
+        this.type[NativeType.setter](baseAddress, v, this.rva);
+    }
+}
+
+export function makeNativeGetter(infos:[number, Type<any>, any[]][]):()=>any {
+    return function (){
+        for (const [rva, type, args] of infos) {
+            if (itemsEquals(args, arguments)) return type[NativeType.getter](dll.base, rva);
+        }
+        throw Error(`overload not found`);
+    };
+}
+export function defineNativeField<KEY extends keyof any, T>(target:{[key in KEY]:T}, key:KEY, rva:number, type:Type<T>):void {
+    Object.defineProperty(target, key, {
+        get():T {
+            return type[NativeType.getter](baseAddress, rva);
+        },
+        set(value:T):void {
+            return type[NativeType.setter](baseAddress, value, rva);
+        }
+    });
+}
+export function defineNativeAddressField<KEY extends keyof any, T>(target:{[key in KEY]:T}, key:KEY, rva:number, type:Type<T>):void {
+    Object.defineProperty(target, key, {
+        get():T {
+            return type[NativeType.getter](baseAddress, rva);
+        },
+        set(value:T):void {
+            return type[NativeType.setter](baseAddress, value, rva);
+        }
+    });
 }
 
 let warned = false;

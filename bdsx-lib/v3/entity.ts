@@ -1,11 +1,9 @@
 import { AttributeId, MobEffectIds } from "../enums";
-import { hook } from "../hook";
 import { mcglobal } from "../mcglobal";
-import { Actor, ActorUniqueID, AttributeInstance, DimensionId, EventResult, MobEffect, MobEffectInstance, RelativeFloat, ScriptServerActorEventListener, TeleportCommand, Vec3 } from "../minecraft";
+import { Actor, ActorUniqueID, AttributeInstance, DimensionId, MobEffect, MobEffectInstance, RelativeFloat, TeleportCommand, Vec3 } from "../minecraft";
 import { bin64_t } from "../nativetype";
-import { _tickCallback } from "../util";
-import { events } from "./events";
 import colors = require('colors');
+import asmcode = require("../asm/asmcode");
 
 const entityKey = Symbol('entity');
 const entityMapper = Symbol('entityMapper');
@@ -184,22 +182,3 @@ interface ActorX extends Actor {
     [entityKey]?:Entity;
     [entityMapper]?():Entity|null;
 }
-
-export class EntityCreatedEvent {
-    constructor(
-        public entity: Entity
-    ) {
-    }
-}
-
-function onEntityCreated(this:ScriptServerActorEventListener, actor:ActorX):EventResult {
-    const entity = Entity.fromRaw(actor);
-    if (entity === null) {
-        return _onEntityCreated.call(this, actor);
-    }
-    const event = new EntityCreatedEvent(entity);
-    events.entityCreated.fire(event);
-    _tickCallback();
-    return _onEntityCreated.call(this, event.entity.getRawEntity());
-}
-const _onEntityCreated = hook(ScriptServerActorEventListener, 'onActorCreated').call(onEntityCreated);

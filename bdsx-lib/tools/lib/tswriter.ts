@@ -3,7 +3,7 @@ import fs = require('fs');
 import path = require('path');
 import { notImplemented, unreachable } from '../../common';
 import { intToVarString } from '../../util';
-import { FileLineWriter, LineWriter, StringLineWriter } from '../../writer/linewriter';
+import { FileLineWriter, LineWriter, StringLineWriter } from '../writer/linewriter';
 import { UnusedName } from './unusedname';
 
 enum Precedence {
@@ -70,7 +70,7 @@ export namespace tsw {
 
     export interface DefinationHost {
         addFunctionDecl(name:Name|Property, params:DefineItem[], returnType:Type|null, isStatic:boolean):void;
-        addVariable(name:Name|Property, type:Type|null, isStatic:boolean, initial?:Value|null):void;
+        addVariable(name:Name|Property, type:Type|null, isStatic:boolean, isReadOnly:boolean, initial?:Value|null):void;
         const(name:Name, type:Type|null, value:Value):void;
     }
 
@@ -255,7 +255,7 @@ export namespace tsw {
             dest.push(this);
         }
         blockedWriteTo(os:LineWriter):void {
-            os.write('// '+this.comment.trimRight());
+            os.write('//'+this.comment.trimRight());
         }
         classedWriteTo(os:LineWriter):void {
             this.blockedWriteTo(os);
@@ -330,7 +330,7 @@ export namespace tsw {
         }
         writeTo(os:LineWriter):void {
             this.dest.writeTo(os);
-            os.write(' = ');
+            os.write('=');
             this.src.writeTo(os);
         }
     }
@@ -365,7 +365,7 @@ export namespace tsw {
         writeTo(os:LineWriter):void {
             super.writeTo(os);
             os.write('(');
-            for (const item of os.join(this.params, ', ')) {
+            for (const item of os.join(this.params, ',')) {
                 item.writeTo(os);
             }
             os.write(')');
@@ -385,7 +385,7 @@ export namespace tsw {
         writeTo(os:LineWriter):void {
             this.callee.wrappedWriteTo(os, this.precedence);
             os.write('(');
-            for (const param of os.join(this.params, ', ')) {
+            for (const param of os.join(this.params, ',')) {
                 param.writeTo(os);
             }
             os.write(')');
@@ -407,7 +407,7 @@ export namespace tsw {
             this.clazz.wrappedWriteTo(os, this.precedence);
             if (this.params.length === 0) return;
             os.write('(');
-            for (const param of os.join(this.params, ', ')) {
+            for (const param of os.join(this.params, ',')) {
                 param.writeTo(os);
             }
             os.write(')');
@@ -593,7 +593,10 @@ export namespace tsw {
             this.items.push(new Comment(comment));
         }
 
-        const(name:Name, type:Type|null, value:Value):void {
+        const(name:Name|Property, type:Type|null, value?:Value):void {
+            if (!(name instanceof Name)) {
+                name = name.toName().value;
+            }
             this.write(new VariableDef('const', [
                 new VariableDefineItem(name, type, value)
             ]));
@@ -619,11 +622,17 @@ export namespace tsw {
             }
             this.write(new Export(new FunctionDecl(name, params, returnType)));
         }
-        addVariable(name:Name|Property, type:Type|null, isStatic:boolean, initial?:Value|null):void {
+        addVariable(name:Name|Property, type:Type|null, isStatic:boolean, isReadOnly:boolean, initial?:Value|null):void {
             if (!(name instanceof Name)) {
                 name = name.toName().value;
             }
-            this.write(new Export(new VariableDef('let', [new VariableDefineItem(name, type, initial)])));
+            this.write(new Export(new VariableDef(isReadOnly ? 'const' : 'let', [new VariableDefineItem(name, type, initial)])));
+        }
+        addVariableDecl(name:Name|Property, type:Type|null, isStatic:boolean, isReadOnly:boolean, initial?:Value|null):void {
+            if (!(name instanceof Name)) {
+                name = name.toName().value;
+            }
+            this.write(new Declare(new VariableDef(isReadOnly ? 'const' : 'let', [new VariableDefineItem(name, type, initial)])));
         }
 
         writeJS(ctx:JsCloningContext):void {
@@ -717,7 +726,7 @@ export namespace tsw {
                 this.type.writeTo(os);
             }
             if (this.initial !== null && this.initial !== OPTIONAL) {
-                os.write(' = ');
+                os.write('=');
                 this.initial.writeTo(os);
             }
         }
@@ -749,16 +758,19 @@ export namespace tsw {
         cloneToExportedDecl():Exportable|null {
             return this;
         }
+        isExportNoneOnJS():boolean {
+            return this.names.length === 0;
+        }
         blockedWriteTo(os:LineWriter):void {
-            os.write('{ ');
-            for (const [from, to] of os.join(this.names, ', ')) {
+            os.write('{');
+            for (const [from, to] of os.join(this.names, ',')) {
                 if (from.name === to.name) {
                     os.write(from.name);
                 } else {
                     os.write(`${from.name}:${to.name}`);
                 }
             }
-            os.write(' }');
+            os.write('}');
         }
     }
 
@@ -789,7 +801,7 @@ export namespace tsw {
 
         writeTo(os:LineWriter):void {
             this.unpack.blockedWriteTo(os);
-            os.write(' = ');
+            os.write('=');
             this.initial.writeTo(os);
         }
     }
@@ -819,7 +831,7 @@ export namespace tsw {
 
         writeTo(os:LineWriter):void {
             os.write('[');
-            for (const item of os.join(this.names, ', ')) {
+            for (const item of os.join(this.names, ',')) {
                 os.write(item.name);
             }
             os.write(']=');
@@ -836,6 +848,7 @@ export namespace tsw {
 
     export interface Exportable extends Defination {
         cloneToExportedDecl():Exportable|null;
+        isExportNoneOnJS():boolean;
     }
 
     export class Defines extends ItemBase {
@@ -866,7 +879,7 @@ export namespace tsw {
         }
 
         writeTo(os:LineWriter):void {
-            for (const item of os.join(this.defines, ', ')) {
+            for (const item of os.join(this.defines, ',')) {
                 item.writeTo(os);
             }
         }
@@ -926,7 +939,7 @@ export namespace tsw {
                 this.type.writeTo(os);
             }
             if (this.initial !== null) {
-                os.write(' = ');
+                os.write('=');
                 this.initial.writeTo(os);
             }
             os.write(';');
@@ -939,7 +952,7 @@ export namespace tsw {
         }
         writeTo(os:LineWriter):void {
             os.write('<');
-            for (const [name, type] of os.join(this.params, ', ')) {
+            for (const [name, type] of os.join(this.params, ',')) {
                 os.write(name);
                 if (type != null) {
                     os.write(' extends ');
@@ -950,7 +963,7 @@ export namespace tsw {
         }
     }
 
-    export class Class extends Value implements Defination, DefinationHost {
+    export class Class extends Value implements Defination, DefinationHost, Exportable {
         private readonly items:ClassItem[] = [];
         public extends:Value|null = null;
         public templates:TemplateDecl|null = null;
@@ -980,13 +993,13 @@ export namespace tsw {
             }
             this.write(new MethodDecl(null, isStatic, name, params, returnType));
         }
-        addVariable(name:Name|Property, type:Type|null, isStatic:boolean, initial?:Value|null):void {
+        addVariable(name:Name|Property, type:Type|null, isStatic:boolean, isReadOnly:boolean, initial?:Value|null):void {
             if (!(name instanceof Property)) {
                 name = name.toProperty();
             }
-            this.write(new ClassField(null, isStatic, false, name, type, initial));
+            this.write(new ClassField(null, isStatic, isReadOnly, name, type, initial));
         }
-        const(name:Name|Property, type:Type|null, value:Value):void {
+        const(name:Name|Property, type:Type|null, value?:Value):void {
             if (!(name instanceof Property)) {
                 name = name.toProperty();
             }
@@ -1025,6 +1038,9 @@ export namespace tsw {
             }
             return cls;
         }
+        isExportNoneOnJS():boolean {
+            return false;
+        }
 
         getDefineNames(names:Names):void {
             names.addValue(this.name, this, this.name);
@@ -1042,7 +1058,7 @@ export namespace tsw {
                 os.write(' extends ');
                 this.extends.writeTo(os);
             }
-            os.write(' {');
+            os.write('{');
             os.tab();
             os.lineBreak();
             for (const item of this.items) {
@@ -1058,7 +1074,7 @@ export namespace tsw {
         }
     }
 
-    export class Enum extends ItemBase implements Defination, BlockItem{
+    export class Enum extends ItemBase implements Defination, BlockItem, Exportable{
         constructor(
             public readonly name:Name,
             public readonly items:[string, Value?][]) {
@@ -1098,16 +1114,19 @@ export namespace tsw {
         cloneToExportedDecl():Enum {
             return new Enum(this.name, this.items);
         }
+        isExportNoneOnJS():boolean {
+            return false;
+        }
         getDefineNames(names:Names):void {
             names.addValue(this.name, this, null);
         }
 
         blockedWriteTo(os:LineWriter):void {
-            os.write(`enum ${this.name} {`);
+            os.write(`enum ${this.name}{`);
             for (const [key, value] of os.join(this.items, ',', true)) {
                 os.write(key);
                 if (value != null) {
-                    os.write(' = ');
+                    os.write('=');
                     value.writeTo(os);
                 }
             }
@@ -1159,7 +1178,7 @@ export namespace tsw {
         abstract blockedWriteTo(os:LineWriter):void;
     }
 
-    export class Namespace extends NamespaceLike {
+    export class Namespace extends NamespaceLike implements Exportable {
         constructor(
             public name:Name,
             block?:Block) {
@@ -1170,10 +1189,12 @@ export namespace tsw {
             const cloned = this.block.cloneToDecl();
             return new Namespace(this.name, cloned);
         }
+        isExportNoneOnJS():boolean {
+            return false;
+        }
         blockedWriteTo(os:LineWriter):void {
             os.write('namespace ');
             this.name.writeTo(os);
-            os.write(' ');
             this.block.blockedWriteTo(os);
         }
     }
@@ -1191,7 +1212,6 @@ export namespace tsw {
         blockedWriteTo(os:LineWriter):void {
             os.write('module ');
             this.name.writeTo(os);
-            os.write(' ');
             this.block.blockedWriteTo(os);
         }
     }
@@ -1222,6 +1242,7 @@ export namespace tsw {
             return new Export(cloned);
         }
         writeJS(ctx:JsCloningContext):void {
+            if (this.item.isExportNoneOnJS()) return;
             const names = new Names;
             this.item.getDefineNames(names);
             this.item.writeJS(ctx);
@@ -1321,7 +1342,7 @@ export namespace tsw {
 
 
         writeTo(os:LineWriter):void {
-            os.write(' {');
+            os.write('{');
             os.tab();
             os.lineBreak();
             for (const item of this.items) {
@@ -1374,11 +1395,11 @@ export namespace tsw {
             }
             this.write(new MethodDecl(null, isStatic, name, params, returnType));
         }
-        addVariable(name:Name|Property, type:Type|null, isStatic:boolean, initial?:Value|null):void {
+        addVariable(name:Name|Property, type:Type|null, isStatic:boolean, isReadOnly:boolean, initial?:Value|null):void {
             if (!(name instanceof Property)) {
                 name = name.toProperty();
             }
-            this.write(new ClassField(null, isStatic, false, name, type, initial));
+            this.write(new ClassField(null, isStatic, isReadOnly, name, type, initial));
         }
         const(name:Name|Property, type:Type|null, value:Value):void {
             if (!(name instanceof Property)) {
@@ -1405,7 +1426,7 @@ export namespace tsw {
             }
             if (this.extends.length !== 0) {
                 os.write(' extends ');
-                for (const item of os.join(this.extends, ', ')) {
+                for (const item of os.join(this.extends, ',')) {
                     item.writeTo(os);
                 }
             }
@@ -1476,7 +1497,9 @@ export namespace tsw {
         abstract toName():NamePair;
         abstract classedWriteTo(os:LineWriter):void;
         abstract memberedWriteTo(os:LineWriter):void;
+        abstract toKeyValue():Value;
         abstract toStringWithoutDot():string;
+        abstract toString():string;
     }
     export class BracketProperty extends Property {
         constructor(public value:Value) {
@@ -1491,24 +1514,25 @@ export namespace tsw {
         memberedWriteTo(os:LineWriter):void {
             this.classedWriteTo(os);
         }
-        toString():string {
-            return '['+this.value.toString()+']';
-        }
         toName():NamePair {
             throw Error(`${this} is not name property`);
+        }
+        toKeyValue():Value {
+            return this.value;
         }
         toStringWithoutDot():string {
             return this.toString();
         }
+        toString():string {
+            return '['+this.value.toString()+']';
+        }
     }
     export class NameProperty extends Property {
-        private idname:Name;
-        private typename:TypeName;
+        private namePair:NamePair;
 
         constructor(public name:string) {
             super();
-            this.idname = Value.asName(this.name);
-            this.typename = Type.asName(this.name);
+            this.namePair = NamePair.asName(this.name);
         }
         classedWriteTo(os:LineWriter):void {
             os.write(this.name);
@@ -1516,17 +1540,18 @@ export namespace tsw {
         memberedWriteTo(os:LineWriter):void {
             os.write('.'+this.name);
         }
+        toName():NamePair {
+            return this.namePair;
+        }
+        toKeyValue():Value {
+            return new tsw.Constant(this.name);
+        }
         toString():string {
             return '.'+this.name;
         }
         toStringWithoutDot():string {
             return this.name;
         }
-        toName():NamePair {
-            return new NamePair(this.idname, this.typename);
-        }
-
-        public static readonly prototypeName = new NameProperty('prototype');
     }
     export class NumberProperty extends Property {
         constructor(public number:number) {
@@ -1538,11 +1563,14 @@ export namespace tsw {
         memberedWriteTo(os:LineWriter):void {
             os.write('['+this.number+']');
         }
-        toString():string {
-            return '['+this.number+']';
-        }
         toName():NamePair {
             throw Error(`${this} is not name property`);
+        }
+        toKeyValue():Value {
+            return new tsw.Constant(this.number);
+        }
+        toString():string {
+            return '['+this.number+']';
         }
         toStringWithoutDot():string {
             return this.number.toString();
@@ -1572,7 +1600,7 @@ export namespace tsw {
 
         writeTo(os:LineWriter):void {
             os.write('[');
-            for (const value of os.join(this.fields, ', ')) {
+            for (const value of os.join(this.fields, ',')) {
                 value.writeTo(os);
             }
             os.write(']');
@@ -1596,7 +1624,7 @@ export namespace tsw {
 
         writeTo(os:LineWriter):void {
             os.write('(');
-            for (const item of os.join(this.params, ', ')) {
+            for (const item of os.join(this.params, ',')) {
                 item.writeTo(os);
             }
             os.write(')');
@@ -1625,6 +1653,9 @@ export namespace tsw {
         cloneToExportedDecl():TypeDef {
             return this;
         }
+        isExportNoneOnJS():boolean {
+            return true;
+        }
 
         getDefineNames(names:Names):void {
             names.addType(this.name, this, this.type);
@@ -1634,7 +1665,7 @@ export namespace tsw {
             os.write(`type ${this.name}`);
             if (this.templates !== null) {
                 os.write('<');
-                for (const item of os.join(this.templates, ', ')) {
+                for (const item of os.join(this.templates,',')) {
                     item.writeTo(os);
                 }
                 os.write('>');
@@ -1646,14 +1677,14 @@ export namespace tsw {
 
         toString():string {
             if (this.templates !== null) {
-                return `type ${this.name}<${this.templates.join(', ')}> = ${this.type}`;
+                return `type ${this.name}<${this.templates.join(',')}>=${this.type}`;
             } else {
-                return `type ${this.name} = ${this.type}`;
+                return `type ${this.name}=${this.type}`;
             }
         }
     }
 
-    export class VariableDef extends ItemBase implements Defination {
+    export class VariableDef extends ItemBase implements Defination, Exportable {
         public vars:Defines;
 
         constructor(public define:'var'|'let'|'const', defines:DefineItem[]) {
@@ -1677,6 +1708,18 @@ export namespace tsw {
         cloneToExportedDecl():VariableDef {
             return new VariableDef(this.define, this.vars.paramsCloneToDeclNoOptional());
         }
+        isExportNoneOnJS():boolean {
+            for (const def of this.vars.defines) {
+                if (def instanceof VariableDefineItem) {
+                    if (def.initial !== null) {
+                        return false;
+                    }
+                } else {
+                    return false;
+                }
+            }
+            return true;
+        }
 
 
         getDefineNames(names:Names):void {
@@ -1697,7 +1740,7 @@ export namespace tsw {
         }
     }
 
-    export class FunctionDecl extends ItemBase implements Defination {
+    export class FunctionDecl extends ItemBase implements Defination, Exportable {
         public params:ParamDef;
         public templates:TemplateDecl|null = null;
 
@@ -1720,6 +1763,9 @@ export namespace tsw {
 
         cloneToExportedDecl():FunctionDecl {
             return this;
+        }
+        isExportNoneOnJS():boolean {
+            return true;
         }
 
         getDefineNames(names:Names):void {
@@ -1774,7 +1820,6 @@ export namespace tsw {
                 os.write(':');
                 this.returnType.writeTo(os);
             }
-            os.write(' ');
             this.block.blockedWriteTo(os);
         }
 
@@ -1927,7 +1972,6 @@ export namespace tsw {
                 os.write(':');
                 this.returnType.writeTo(os);
             }
-            os.write(' ');
             this.block.blockedWriteTo(os);
         }
 
@@ -1949,7 +1993,7 @@ export namespace tsw {
         }
         writeTo(os:LineWriter):void {
             os.write('[');
-            for (const value of os.join(this.fields, ', ', this.linePerComponent)) {
+            for (const value of os.join(this.fields, ',', this.linePerComponent)) {
                 value.writeTo(os);
             }
             os.write(']');
@@ -1973,7 +2017,7 @@ export namespace tsw {
         }
         writeTo(os:LineWriter):void {
             os.write('{');
-            for (const [name, value] of os.join(this.fields, ', ')) {
+            for (const [name, value] of os.join(this.fields, ',')) {
                 if (name instanceof tsw.NameProperty && value instanceof tsw.Name) {
                     if (name.name === value.name) {
                         value.writeTo(os);
@@ -1997,7 +2041,7 @@ export namespace tsw {
             if (this.params.length === 0) throw Error(`Empty parameter types (${this.toString()})`);
             this.type.writeTo(os);
             os.write('<');
-            for (const type of os.join(this.params, ', ')) {
+            for (const type of os.join(this.params, ',')) {
                 type.wrappedWriteTo(os, Precedence.Comma);
             }
             os.write('>');
@@ -2175,9 +2219,9 @@ export namespace tsw {
         }
 
         blockedWriteTo(os:LineWriter):void {
-            os.write('import { ');
+            os.write('import {');
             os.tab();
-            for (const [from, to] of os.join(this.imports, ', ')) {
+            for (const [from, to] of os.join(this.imports, ',')) {
                 let name:string;
                 if (from.name === to.name) {
                     name = from.name;
@@ -2187,7 +2231,7 @@ export namespace tsw {
                 os.lineBreakIfLong(name);
             }
             os.detab();
-            os.write(` } from "${this.path}";`);
+            os.write(`}from"${this.path}";`);
         }
         getDefineNames(names:Names):void {
             for (const [from, to] of this.imports) {
@@ -2213,9 +2257,9 @@ export namespace tsw {
         }
 
         blockedWriteTo(os:LineWriter):void {
-            os.write('import type { ');
+            os.write('import type{');
             os.tab();
-            for (const [from, to] of os.join(this.imports, ', ')) {
+            for (const [from, to] of os.join(this.imports, ',')) {
                 let name:string;
                 if (from.name === to.name) {
                     name = from.name;
@@ -2225,10 +2269,10 @@ export namespace tsw {
                 os.write(name);
             }
             os.detab();
-            os.write(` } from "${this.path}";`);
+            os.write(`}from"${this.path}";`);
         }
         toString():string {
-            return `import type { ... } = from "${this.path}"`;
+            return `import type{...}from"${this.path}"`;
         }
     }
 
@@ -2291,6 +2335,9 @@ export namespace tsw {
     export namespace ItemPair {
         export const any = new ItemPair(Constant.null, BasicType.any);
         export const never = new ItemPair(Constant.null, BasicType.never);
+    }
+    export namespace NameProperty {
+        export const prototypeName = new NameProperty('prototype');
     }
 
     export function dots<T extends IdBase>(host:T, ...names:(string|Property|Name|number)[]):T {

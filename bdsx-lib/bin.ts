@@ -48,8 +48,7 @@ function add_with_offset(a:number[], b:string, offset:number):void {
     a.push(v);
 }
 
-export namespace bin
-{
+export namespace bin {
     export function isZero(value:string):boolean {
         for (let i=0;i<value.length;i++) {
             if (value.charCodeAt(i) !== 0) return false;

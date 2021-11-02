@@ -7,9 +7,6 @@ import { NetworkHandler, networkHandler, NetworkIdentifier, RakNet } from "../mi
 import { NativeClass } from "../nativeclass";
 import { NativeType } from "../nativetype";
 import { _tickCallback } from "../util";
-import { events } from "../v3/events";
-import { PlayerDisconnectEvent } from "../v3/events/playerevent";
-import { Player } from "../v3/player";
 import './raknet/addressorguid';
 import { minecraftTsReady } from "./ready";
 
@@ -76,19 +73,11 @@ function _singletoning(ptr:NetworkIdentifier):NetworkIdentifier {
     return ni;
 }
 
-minecraftTsReady.promise.then(()=>{
-    hook(NetworkHandler, 'onConnectionClosed').call(ni=>{
-        const player = Player.fromNetworkIdentifier(ni);
-        if (player !== null) {
-            const ev = new PlayerDisconnectEvent(player);
-            events.playerDisconnect.fire(ev);
-            _tickCallback();
-        }
-
-        // ni is used after onConnectionClosed. on some message processings.
-        // timeout for avoiding the re-allocation
-        setTimeout(()=>{
-            identifiers.delete(ni);
-        }, 3000);
-    }, {callOriginal: true});
-});
+/**
+ * @internal
+ */
+export function removeNetworkIdentifierReference(ni:NetworkIdentifier):void {
+    setTimeout(()=>{
+        identifiers.delete(ni);
+    }, 3000).unref();
+}

@@ -1,7 +1,7 @@
 
-import { proc, proc2 } from './bds/symbols';
 import { abstract, Bufferable, emptyFunc, Encoding } from './common';
 import { AllocatedPointer, NativePointer, StaticPointer, VoidPointer } from './core';
+import { dllraw } from './dllraw';
 import { makefunc, TypeIn } from './makefunc';
 import { Singleton } from './singleton';
 import { filterToIdentifierableString } from './util';
@@ -128,8 +128,6 @@ function numericBitSetter(this:NativeType<number>, ptr:StaticPointer, value:numb
     this[NativeType.setter](ptr, value, offset);
 }
 
-let typeIndexCounter = 0;
-
 export class NativeType<T, InputType=T> extends makefunc.ParamableT<T, InputType> implements Type<T> {
     public static readonly getter:typeof makefunc.getter = makefunc.getter;
     public static readonly setter:typeof makefunc.setter = makefunc.setter;
@@ -151,7 +149,6 @@ export class NativeType<T, InputType=T> extends makefunc.ParamableT<T, InputType
     public [NativeTypeFn.align]:number;
     public [NativeTypeFn.bitGetter]:(this:NativeType<T, InputType>, ptr:StaticPointer, shift:number, mask:number, offset?:number)=>T = abstract;
     public [NativeTypeFn.bitSetter]:(this:NativeType<T, InputType>, ptr:StaticPointer, value:InputType, shift:number, mask:number, offset?:number)=>void = abstract;
-    public readonly typeIndex = ++typeIndexCounter;
 
     constructor(
         /**
@@ -211,6 +208,7 @@ export class NativeType<T, InputType=T> extends makefunc.ParamableT<T, InputType
         this[NativeType.dtor] = dtor;
         this[NativeType.ctor_copy] = ctor_copy;
         this[NativeType.ctor_move] = ctor_move;
+        this.getIndex();
     }
 
     supportsBitMask():boolean {
@@ -288,17 +286,6 @@ export class NativeType<T, InputType=T> extends makefunc.ParamableT<T, InputType
         builder.ctor_move.ptrUsed = true;
         builder.ctor_move.setPtrOffset(offset);
         builder.ctor_move.code += `${name}[NativeType.ctor_move](ptr, optr);\n`;
-    }
-
-    static definePointedProperty<KEY extends keyof any, T>(target:{[key in KEY]:T}, key:KEY, pointer:StaticPointer, type:Type<T>):void {
-        Object.defineProperty(target, key, {
-            get():T {
-                return type[NativeType.getter](pointer);
-            },
-            set(value:T):void {
-                return type[NativeType.setter](pointer, value);
-            }
-        });
     }
 }
 NativeType.prototype[NativeTypeFn.descriptor] = NativeType.defaultDescriptor;
@@ -524,8 +511,8 @@ export const float64_t = new NativeType<number>(
 export type float64_t = number;
 float64_t[makefunc.useXmmRegister] = true;
 
-const string_ctor = makefunc.js(proc2['??0?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@QEAA@XZ'], void_t, null, VoidPointer);
-const string_dtor = makefunc.js(proc['std::basic_string<char,std::char_traits<char>,std::allocator<char> >::_Tidy_deallocate'], void_t, null, VoidPointer);
+const string_ctor = makefunc.js(dllraw.bedrock_server['??0?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@QEAA@XZ'], void_t, null, VoidPointer);
+const string_dtor = makefunc.js(dllraw.bedrock_server['?_Tidy_deallocate@?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@AEAAXXZ'], void_t, null, VoidPointer);
 
 export const CxxString = new NativeType<string>(
     'std::basic_string<char,std::char_traits<char>,std::allocator<char> >',
@@ -699,6 +686,25 @@ export const PointerLike = new NativeType<NativePointer, VoidPointer|Bufferable|
     },
 );
 export type PointerLike = VoidPointer|Bufferable;
+
+export const AddressOfIt =new NativeType<NativePointer, VoidPointer|Bufferable|string>(
+    'void const &*',
+    8, 8,
+    v=>{
+        if (v === null) return true;
+        return v instanceof VoidPointer;
+    },
+    undefined,
+    (stackptr, offset)=>stackptr.add(offset),
+    (stackptr, param, offset)=>{
+        throw Error('Invalid usage');
+    },
+    undefined,
+    (stackptr, param, offset)=>{
+        throw Error('Invalid usage');
+    },
+);
+export type AddressOfIt = VoidPointer;
 
 export const JsValueRef = new NativeType<any>(
     'JsValueRef',

@@ -5,6 +5,7 @@ import { dnf } from "../dnf";
 import { hook } from "../hook";
 import { AvailableCommandsPacket, CommandParameterData, CommandRegistry } from "../minecraft";
 import { bin64_t, CxxString, int32_t, void_t } from "../nativetype";
+import { minecraftTsReady } from "./ready";
 
 declare module "../minecraft" {
     interface CommandRegistry extends HasTypeId {
@@ -38,15 +39,6 @@ declare module "../minecraft" {
     }
 }
 
-const _serializeAvailableCommands = hook(CommandRegistry, 'serializeAvailableCommands')
-.reform(void_t, null, CommandRegistry, AvailableCommandsPacket);
-
-dnf(CommandRegistry, 'serializeAvailableCommands').overload(function():AvailableCommandsPacket {
-    const pk = AvailableCommandsPacket.create();
-    _serializeAvailableCommands(this, pk);
-    return pk;
-});
-
 CommandRegistry.setExtends(HasTypeId);
 CommandRegistry.abstract({});
 
@@ -69,4 +61,15 @@ CommandRegistry.Signature.abstract({
     commandSymbol:CommandRegistry.Symbol,
     commandAliasEnum:CommandRegistry.Symbol,
     flags:int32_t,
+});
+
+minecraftTsReady(()=>{
+    const _serializeAvailableCommands = hook(CommandRegistry, 'serializeAvailableCommands')
+    .reform(void_t, null, CommandRegistry, AvailableCommandsPacket);
+
+    dnf(CommandRegistry, 'serializeAvailableCommands').overload(function():AvailableCommandsPacket {
+        const pk = AvailableCommandsPacket.create();
+        _serializeAvailableCommands(this, pk);
+        return pk;
+    });
 });

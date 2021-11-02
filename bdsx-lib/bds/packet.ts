@@ -1,12 +1,13 @@
 import { abstract } from "../common";
 import { MantleClass, nativeClass, NativeClass, nativeField } from "../nativeclass";
-import { CxxString, int32_t, Type, uint32_t } from "../nativetype";
+import { CxxString, int32_t, Type, uint32_t, void_t } from "../nativetype";
 import { SharedPtr } from "../sharedpointer";
 import { NetworkIdentifier } from "./networkidentifier";
 import { MinecraftPacketIds } from "./packetids";
 import { procHacker } from "./proc";
 import { BinaryStream } from "./stream";
 import minecraft = require('../minecraft');
+import { hook } from "../hook";
 
 /** @deprecated */
 export const PacketReadResult = uint32_t.extends({
@@ -93,4 +94,4 @@ export const PacketSharedPtr = SharedPtr.make(Packet);
 export type PacketSharedPtr = SharedPtr<Packet>;
 
 /** @deprecated */
-export const createPacketRaw = procHacker.js("MinecraftPackets::createPacket", PacketSharedPtr, null, PacketSharedPtr, int32_t);
+export const createPacketRaw = hook(minecraft.MinecraftPackets.createPacket).reform(PacketSharedPtr, null, PacketSharedPtr, int32_t);

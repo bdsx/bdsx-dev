@@ -1,20 +1,22 @@
 
-import { CommandCheatFlag, CommandUsageFlag } from "../bds/command";
+import { asm } from "../assembler";
 import { bin } from "../bin";
 import { capi } from "../capi";
-import { StaticPointer } from "../core";
+import { NativePointer, StaticPointer } from "../core";
+import { dnf } from "../dnf";
+import { CommandCheatFlag, CommandUsageFlag } from "../enums";
 import { JsonValue } from "../jsonvalue";
 import { makefunc } from "../makefunc";
 import { mcglobal } from "../mcglobal";
-import { Actor, BlockPos, Command, CommandContext, CommandFlag, CommandOrigin, CommandOutput, CommandParameterData, CommandPermissionLevel, CommandRawText, CommandRegistry, CommandVersion, Dimension, DimensionId, MCRESULT, RelativeFloat as RelativeFloatType, ServerCommandOrigin, ServerLevel, std, Vec3, WildcardCommandSelector } from "../minecraft";
-import { nativeClass, NativeClassType, nativeField } from "../nativeclass";
+import { Actor, BlockPos, Command, CommandContext, CommandFlag, CommandOrigin, CommandOutput, CommandParameterData, CommandParameterDataType, CommandPermissionLevel, CommandRawText, CommandRegistry, CommandVersion, Dimension, DimensionId, MCRESULT, RelativeFloat as RelativeFloatType, ServerCommandOrigin, ServerLevel, std, type_id, Vec3, WildcardCommandSelector } from "../minecraft";
+import { KeysFilter, nativeClass, NativeClassType, nativeField } from "../nativeclass";
 import { bool_t, CxxString, int32_t, NativeType, Type, void_t } from "../nativetype";
 import { SharedPtr } from "../sharedpointer";
 import { Entity } from "./entity";
 import { events } from "./events";
 
 const commandVersion = CommandVersion.CurrentVersion;
-const commandContextRefCounterVftable = std._Ref_count_obj2.make(CommandContext).__vftable;
+const commandContextRefCounterVftable = std._Ref_count_obj2.make(CommandContext).addressof_vftable;
 const CommandContextSharedPtr = SharedPtr.make(CommandContext);
 
 function createServerCommandOrigin(name:CxxString, level:ServerLevel, permissionLevel:number, dimension:DimensionId):CommandOrigin {
@@ -27,6 +29,71 @@ function createCommandContext(command:CxxString, origin:CommandOrigin):SharedPtr
     sharedptr.create(commandContextRefCounterVftable);
     sharedptr.p!.constructWith(command, origin, commandVersion);
     return sharedptr;
+}
+
+function mandatory<CMD extends Command,
+    KEY extends keyof CMD,
+    KEY_ISSET extends KeysFilter<CMD, bool_t>|null>(
+    command:new()=>CMD,
+    key:KEY,
+    keyForIsSet:KEY_ISSET,
+    desc?:string|null,
+    type:CommandParameterDataType = CommandParameterDataType.NORMAL,
+    name:string = key as string):CommandParameterData {
+    const cmdclass = command as NativeClassType<any>;
+    const paramType = cmdclass.typeOf(key as string);
+    const offset = cmdclass.offsetOf(key as string);
+    const flag_offset = keyForIsSet !== null ? cmdclass.offsetOf(keyForIsSet as string) : -1;
+    return manual(name, paramType, offset, flag_offset, false, desc, type);
+}
+
+function optional<CMD extends Command,
+    KEY extends keyof CMD,
+    KEY_ISSET extends KeysFilter<CMD, bool_t>|null>(
+    command:new()=>CMD,
+    key:KEY,
+    keyForIsSet:KEY_ISSET,
+    desc?:string|null,
+    type:CommandParameterDataType = CommandParameterDataType.NORMAL,
+    name:string = key as string):CommandParameterData {
+    const cmdclass = command as NativeClassType<any>;
+    const paramType = cmdclass.typeOf(key as string);
+    const offset = cmdclass.offsetOf(key as string);
+    const flag_offset = keyForIsSet !== null ? cmdclass.offsetOf(keyForIsSet as string) : -1;
+    return manual(name, paramType, offset, flag_offset, true, desc, type);
+}
+
+function manual(
+    name:string,
+    paramType:Type<any>,
+    offset:number,
+    flag_offset:number = -1,
+    optional:boolean = false,
+    desc?:string|null,
+    type:CommandParameterDataType = CommandParameterDataType.NORMAL):CommandParameterData {
+    const param = CommandParameterData.construct();
+    const getTypeId = dnf(type_id).getByTemplates(null, CommandRegistry, paramType);
+    if (getTypeId === null) throw Error(`${paramType.name} type_id not found`);
+    param.tid.id = getTypeId().id;
+    const parser = dnf(CommandRegistry, 'parse').getByTemplates(paramType);
+    if (parser === null) throw Error(`${paramType.name} parser not found`);
+    param.parser = dnf.getAddressOf(parser);
+    param.name = name;
+    param.type = type;
+    if (desc != null) {
+        const ptr = new NativePointer;
+        ptr.setAddressFromBuffer(asm.const_str(desc));
+        param.desc = ptr;
+    } else {
+        param.desc = null;
+    }
+
+    param.unk56 = -1;
+    param.offset = offset;
+    param.flag_offset = flag_offset;
+    param.optional = optional;
+    param.pad73 = false;
+    return param;
 }
 
 @nativeClass()
@@ -246,8 +313,8 @@ export namespace command {
             const params:CommandParameterData[] = [];
             CustomCommandImpl.define(builder.fields);
             for (const {name, optkey} of builder.paramInfos) {
-                if (optkey != null) params.push(CustomCommandImpl.optional(name as any, optkey as any));
-                else params.push(CustomCommandImpl.mandatory(name as any, null));
+                if (optkey != null) params.push(optional(CustomCommandImpl, name as any, optkey as any));
+                else params.push(mandatory(CustomCommandImpl, name as any, null));
             }
 
             const customCommandExecute = makefunc.np(function(this:CustomCommandImpl, origin:CommandOrigin, output:CommandOutput){
@@ -285,7 +352,7 @@ export namespace command {
      */
     export function execute(command:string, dimension:Dimension|null = null):MCRESULT {
         const origin = createServerCommandOrigin('Server',
-            mcglobal.level, // I'm not sure it's always ServerLevel
+            mcglobal.level,
             4,
             dimension as any);
 

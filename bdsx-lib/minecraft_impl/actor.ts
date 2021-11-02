@@ -1,10 +1,9 @@
 import asmcode = require("../asm/asmcode");
 import { StaticPointer, VoidPointer } from "../core";
 import { MobEffectIds } from "../enums";
-import { hook } from "../hook";
 import { makefunc } from "../makefunc";
-import { Actor, ItemActor, Level, ServerPlayer } from "../minecraft";
-import { CxxString, NativeType, void_t } from "../nativetype";
+import { Actor, ItemActor, ServerPlayer } from "../minecraft";
+import { CxxString, NativeType } from "../nativetype";
 import { minecraftTsReady } from "./ready";
 
 type EntityStringId = EntityId;
@@ -18,7 +17,7 @@ declare module "../minecraft" {
 
     namespace Actor {
         function all():IterableIterator<Actor>;
-        function registerType(type:{new():Actor, __vftable:VoidPointer}):void;
+        function registerType(type:{new():Actor, addressof_vftable:VoidPointer}):void;
     }
 }
 
@@ -31,12 +30,10 @@ const actorMap = new Map<string, Actor>();
 const typeMap = new Map<string, new()=>Actor>();
 
 
-Actor.registerType = function(type:{new():Actor, __vftable:VoidPointer}):void {
-    typeMap.set(type.__vftable.getAddressBin(), type);
+Actor.registerType = function(type:{new():Actor, name:string, addressof_vftable:VoidPointer}):void {
+    if (type.addressof_vftable == null) throw Error(`${type.name} does not have addressof_vftable`);
+    typeMap.set(type.addressof_vftable.getAddressBin(), type);
 };
-
-Actor.registerType(ServerPlayer);
-Actor.registerType(ItemActor);
 
 function _singletoning(ptr:StaticPointer|null):Actor|null {
     if (ptr === null) return null;
@@ -61,16 +58,12 @@ Actor[makefunc.getFromParam] = function(stackptr:StaticPointer, offset?:number):
     return _singletoning(stackptr.getNullablePointer(offset));
 };
 
-function _removeActor(actor:Actor):void {
+/** @internal */
+export function removeActorReference(actor:Actor):void {
     actorMap.delete(actor.getAddressBin());
 }
 
-minecraftTsReady.promise.then(()=>{
-    const Level$removeEntityReferences = hook(Level, 'removeEntityReferences').call(function(actor, b){
-        _removeActor(actor);
-        return Level$removeEntityReferences.call(this, actor, b);
-    });
-
-    asmcode.removeActor = makefunc.np(_removeActor, void_t, null, Actor);
-    hook(Actor, NativeType.dtor).options({callOriginal: true}).raw(asmcode.actorDestructorHook);
+minecraftTsReady(()=>{
+    Actor.registerType(ServerPlayer);
+    Actor.registerType(ItemActor);
 });

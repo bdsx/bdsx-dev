@@ -1,6 +1,5 @@
 import asmcode = require("./asm/asmcode");
 import { asm, Register, X64Assembler } from "./assembler";
-import { proc2 } from "./bds/symbols";
 import "./codealloc";
 import { abstract, Bufferable, emptyFunc, Encoding } from "./common";
 import { AllocatedPointer, cgate, chakraUtil, jshook, NativePointer, runtimeError, StaticPointer, StructurePointer, uv_async, VoidPointer, VoidPointerConstructor } from "./core";
@@ -8,6 +7,7 @@ import { dllraw } from "./dllraw";
 import { FunctionGen } from "./functiongen";
 import { isBaseOf } from "./util";
 import util = require('util');
+import minecraft = require('./minecraft');
 
 export type ParamType = makefunc.Paramable;
 
@@ -28,7 +28,7 @@ function initFunctionMap():void {
     asmcode.uv_async_alloc = uv_async.alloc;
     asmcode.uv_async_post = uv_async.post;
     asmcode.uv_async_call = uv_async.call;
-    asmcode.vsnprintf = proc2.vsnprintf;
+    asmcode.vsnprintf = minecraft.addressof_vsnprintf;
 
     asmcode.js_null = chakraUtil.asJsValueRef(null);
     asmcode.js_undefined = chakraUtil.asJsValueRef(undefined);
@@ -138,9 +138,22 @@ export type FunctionFromTypes_js_without_pointer<
     RETURN extends ParamType> =
     ((this:GetThisFromOpts<OPTS>, ...args: TypesFromParamIds_js2np<PARAMS>) => TypeFrom_np2js<RETURN>);
 
+const typeIndex = Symbol('typeIndex');
 export interface TypeIn<T> extends makefunc.Paramable {
+    [typeIndex]?:number;
     name:string;
     prototype:T;
+}
+
+let typeIndexCounter = 0;
+export namespace TypeIn {
+    export function getIndex(this:TypeIn<any>):number {
+        let v = this[typeIndex];
+        if (v == null) {
+            v = this[typeIndex] = ++typeIndexCounter;
+        }
+        return v;
+    }
 }
 
 function invalidParameterError(paramName:string, expected:string, actual:unknown):never {
@@ -191,7 +204,6 @@ export namespace makefunc {
         isTypeOfWeak(v:unknown):boolean;
     }
     export class ParamableT<T, InputType=T> implements TypeIn<T> {
-
         constructor(
             public readonly name:string,
             _getFromParam:(stackptr:StaticPointer, offset?:number)=>T|null,
@@ -204,9 +216,14 @@ export namespace makefunc {
             this[ctor_move] = _ctor_move;
             this.isTypeOf = isTypeOf as any;
             this.isTypeOfWeak = isTypeOfWeak as any;
+            this.getIndex();
+        }
+        getIndex():number {
+            abstract();
         }
     }
     ParamableT.prototype[useXmmRegister] = false;
+    ParamableT.prototype.getIndex = TypeIn.getIndex;
 
     /**
      * allocate temporal memory for using in NativeType
@@ -384,7 +401,10 @@ export namespace makefunc {
             gen.writeln(`const vftable=this.getPointer(${thisoff});`);
             gen.writeln(`const func=vftable.getPointer(${vfoff});`);
         } else {
-            if (!(functionPointer instanceof VoidPointer)) throw TypeError(`arg1, expected=*Pointer, actual=${functionPointer}`);
+            if (!(functionPointer instanceof VoidPointer)) {
+                if (functionPointer == null) throw Error(`the function pointer is null`);
+                throw TypeError(`arg1, expected=*Pointer, actual=${functionPointer}`);
+            }
             gen.import('func', functionPointer);
         }
 

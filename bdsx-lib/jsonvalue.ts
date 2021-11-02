@@ -14,7 +14,7 @@ export const JsonValue = new NativeType<any>(
 );
 export type JsonValue = any;
 
-minecraftTsReady.promise.then(()=>{
+minecraftTsReady(()=>{
     const { Json } = require('./minecraft') as typeof import('./minecraft');
     JsonValue[NativeType.getter] = (ptr, offset)=>{
         const jsoninst = ptr.getPointerAs(Json.Value, offset);

@@ -290,6 +290,10 @@ export function inheritMultiple<T>(child:AbstractClass<T>, base:AbstractClass<T>
         if ((key in childp)) continue;
         childp[key] = basep[key];
     }
+    for (const key of Object.getOwnPropertyNames(base)) {
+        if ((key in child)) continue;
+        child[key] = base[key];
+    }
 }
 
 export type DeferPromise<T> = Promise<T>&{resolve:(value?:T|PromiseLike<T>)=>void, reject:(reason?:any)=>void};

@@ -1,12 +1,12 @@
-import { procHacker } from "./bds/proc";
 import { bin } from "./bin";
+import { dnf } from "./dnf";
+import { Crypto } from "./minecraft";
 import { MantleClass, nativeClass, NativeClass, nativeField } from "./nativeclass";
 import { bin128_t, bin64_t, uint16_t, uint32_t, uint64_as_float_t, uint8_t } from "./nativetype";
 import { Wrapper } from "./pointer";
 
 /** @deprecated */
-export namespace mce
-{
+export namespace mce {
     /** @deprecated */
     export const UUID = bin128_t.extends({
         v1(uuid:UUID):uint32_t {
@@ -34,7 +34,9 @@ export namespace mce
             return `${u1}-${u2}-${u3}-${u4}-${u5}`;
         },
     }, 'UUID');
+    /** @deprecated */
     export type UUID = string;
+    /** @deprecated */
     export const UUIDWrapper = Wrapper.make(mce.UUID);
 
     /** @deprecated */
@@ -63,4 +65,4 @@ export namespace mce
     }
 }
 
-const generateUUID = procHacker.js("Crypto::Random::generateUUID", mce.UUIDWrapper, {structureReturn: true});
+const generateUUID = dnf(Crypto.Random.generateUUID).reform(mce.UUIDWrapper, {structureReturn: true});

@@ -1,15 +1,12 @@
 import { asm, X64Assembler } from "./assembler";
 import { cgate, chakraUtil, runtimeError, StaticPointer, VoidPointer } from "./core";
 
-declare module "./assembler"
-{
-    interface X64Assembler
-    {
+declare module "./assembler" {
+    interface X64Assembler {
         alloc(name?:string|null):StaticPointer;
         allocs():Record<string, StaticPointer>;
     }
-    namespace asm
-    {
+    namespace asm {
         function const_str(str:string, encoding?:BufferEncoding):Buffer;
         function getFunctionName(address:VoidPointer):string|null;
         function setFunctionNames(base:VoidPointer, labels:Record<string, number>):void;
@@ -87,7 +84,7 @@ X64Assembler.prototype.allocs = function():Record<string, StaticPointer> {
     }
     const defs = this.defs();
     for (const name in defs) {
-        out[name] = mem.add(defs[name] + buffersize);
+        out[name] = mem.add(defs[name][0] + buffersize);
     }
 
     const table = labels['#runtime_function_table'];

@@ -22,14 +22,23 @@ export class TemplateInfo {
         public readonly parent:TemplateInfo|null,
         /**
          * candidates of template parameters
+         * contains parent template parameters
          */
         public readonly paramTypes:TemplateDeclParam[],
         /**
          * actual inputed parameters
+         * contains parent template parameters
          */
         public readonly parameters:(Identifier|Identifier[])[],
         public readonly variadicOffsetOfThis:number,
     ) {
+    }
+
+    /**
+     * strip parent parameters
+     */
+    getOwnParametersOnly():(Identifier|Identifier[])[] {
+        return this.parameters.slice(this.parent !== null ? this.parent.parameters.length : 0);
     }
 
 

@@ -16,61 +16,51 @@ import { JsonValue } from "./connreq";
 import { AvailableCommandsPacket } from "./packets";
 import { procHacker } from "./proc";
 import { HasTypeId, typeid_t, type_id } from "./typeid";
-import minecraft = require('../minecraft');
 import { dnf } from "../dnf";
+import minecraft = require('../minecraft');
+import enums = require('../enums');
 
 /** @deprecated */
 export const CommandPermissionLevel = minecraft.CommandPermissionLevel;
 /** @deprecated */
 export type CommandPermissionLevel = minecraft.CommandPermissionLevel;
 
-export enum CommandCheatFlag {
-    Cheat,
-    NotCheat = 0x40,
-    /** @deprecated */
-    NoCheat = 0x40,
-    None = 0,
-}
+/** @deprecated import it from 'bdsx/enums' */
+export const CommandCheatFlag = enums.CommandCheatFlag;
+/** @deprecated import it from 'bdsx/enums' */
+export type CommandCheatFlag = enums.CommandCheatFlag;
 
-export enum CommandExecuteFlag {
-    Allowed,
-    Disallowed = 0x10,
-}
+/** @deprecated import it from 'bdsx/enums' */
+export const CommandExecuteFlag = enums.CommandExecuteFlag;
+/** @deprecated import it from 'bdsx/enums' */
+export type CommandExecuteFlag = enums.CommandExecuteFlag;
 
-export enum CommandSyncFlag {
-    Synced,
-    Local = 8,
-}
+/** @deprecated import it from 'bdsx/enums' */
+export const CommandSyncFlag = enums.CommandSyncFlag;
+/** @deprecated import it from 'bdsx/enums' */
+export type CommandSyncFlag = enums.CommandSyncFlag;
 
-export enum CommandTypeFlag {
-    None,
-    Message = 0x20,
-}
+/** @deprecated import it from 'bdsx/enums' */
+export const CommandTypeFlag = enums.CommandTypeFlag;
+/** @deprecated import it from 'bdsx/enums' */
+export type CommandTypeFlag = enums.CommandTypeFlag;
 
-export enum CommandUsageFlag {
-    Normal,
-    Test,
-    /** @deprecated Use CommandVisibilityFlag */
-    Hidden,
-    _Unknown=0x80
-}
+/** @deprecated import it from 'bdsx/enums' */
+export const CommandUsageFlag = enums.CommandUsageFlag;
+/** @deprecated import it from 'bdsx/enums' */
+export type CommandUsageFlag = enums.CommandUsageFlag;
 
-/** Putting in flag1 or flag2 are both ok, you can also combine with other flags like CommandCheatFlag.NoCheat | CommandVisibilityFlag.HiddenFromCommandBlockOrigin but combining is actually not quite useful */
-export enum CommandVisibilityFlag {
-    Visible,
-    /** Bug: Besides from being hidden from command blocks, players cannot see it also well, but they are still able to execute */
-    HiddenFromCommandBlockOrigin = 2,
-    HiddenFromPlayerOrigin = 4,
-    /** Still visible to console */
-    Hidden = 6,
-}
+/** @deprecated import it from 'bdsx/enums' */
+export const CommandVisibilityFlag = enums.CommandVisibilityFlag;
+/** @deprecated import it from 'bdsx/enums' */
+export type CommandVisibilityFlag = enums.CommandVisibilityFlag;
 
 /** @deprecated **/
 export const CommandFlag = CommandCheatFlag; // CommandFlag is actually a class
 
-/** @deprecated */
+/** @deprecated import it from 'bdsx/minecraft' */
 export const MCRESULT = minecraft.MCRESULT;
-/** @deprecated */
+/** @deprecated import it from 'bdsx/minecraft' */
 export type MCRESULT = minecraft.MCRESULT;
 
 /** @deprecated */
@@ -86,9 +76,10 @@ export class CommandSelectorBase extends NativeClass {
         return actors;
     }
 }
-const CommandSelectorBaseCtor = procHacker.js('CommandSelectorBase::CommandSelectorBase', void_t, null, CommandSelectorBase, bool_t);
-CommandSelectorBase.prototype[NativeType.dtor] = procHacker.js('CommandSelectorBase::~CommandSelectorBase', void_t, {this:CommandSelectorBase});
-(CommandSelectorBase.prototype as any)._newResults = procHacker.js('CommandSelectorBase::newResults', SharedPtr.make(CxxVector.make(Actor.ref())), {this:CommandSelectorBase, structureReturn: true}, CommandOrigin);
+
+const CommandSelectorBaseCtor = dnf(minecraft.CommandSelectorBase, 'constructWith').reform(void_t, null, CommandSelectorBase, bool_t);
+CommandSelectorBase.prototype[NativeType.dtor] = minecraft.CommandSelectorBase[NativeType.dtor] as any;
+(CommandSelectorBase.prototype as any)._newResults = dnf(minecraft.CommandSelectorBase, 'newResults').reform(SharedPtr.make(CxxVector.make(Actor.ref())), {this:CommandSelectorBase, structureReturn: true}, CommandOrigin);
 
 @nativeClass()
 export class WildcardCommandSelector<T> extends CommandSelectorBase {
@@ -214,6 +205,7 @@ export enum CommandOutputType {
 
 type CommandOutputParameterType = string|boolean|number|Actor|BlockPos|Vec3|Actor[];
 
+/** @deprecated import it from 'bdsx/minecraft'  */
 @nativeClass(0x28)
 export class CommandOutputParameter extends NativeClass {
     @nativeField(CxxString)
@@ -263,6 +255,7 @@ export class CommandOutputParameter extends NativeClass {
     }
 }
 
+/** @deprecated import it from 'bdsx/minecraft'  */
 @nativeClass(0x30)
 export class CommandOutput extends NativeClass {
     getType():CommandOutputType {
@@ -324,13 +317,14 @@ export class CommandOutput extends NativeClass {
     }
 }
 
+/** @deprecated import it from 'bdsx/minecraft'  */
 @nativeClass(null)
 export class CommandOutputSender extends NativeClass {
     @nativeField(VoidPointer)
     vftable:VoidPointer;
 }
 
-/** @deprecated */
+/** @deprecated import it from 'bdsx/minecraft'  */
 @nativeClass(null)
 export class MinecraftCommands extends NativeClass {
     @nativeField(VoidPointer)
@@ -350,6 +344,7 @@ export class MinecraftCommands extends NativeClass {
 
 export enum CommandParameterDataType { NORMAL, ENUM, SOFT_ENUM, POSTFIX }
 
+/** @deprecated import it from 'bdsx/minecraft'  */
 @nativeClass()
 export class CommandParameterData extends NativeClass {
     @nativeField(typeid_t)
@@ -374,18 +369,11 @@ export class CommandParameterData extends NativeClass {
     pad73:bool_t;
 }
 
-@nativeClass()
-export class CommandVFTable extends NativeClass {
-    @nativeField(VoidPointer)
-    destructor:VoidPointer;
-    @nativeField(VoidPointer)
-    execute:VoidPointer|null;
-}
-
+/** @deprecated import it from 'bdsx/minecraft'  */
 @nativeClass()
 export class Command extends NativeClass {
-    @nativeField(CommandVFTable.ref())
-    vftable:CommandVFTable; // 0x00
+    @nativeField(minecraft.Command.VFTable.ref())
+    vftable:minecraft.Command.VFTable; // 0x00
     @nativeField(int32_t)
     u1:int32_t; // 0x08
     @nativeField(VoidPointer)
@@ -464,9 +452,16 @@ export class Command extends NativeClass {
 }
 
 export namespace Command {
-    export const VFTable = CommandVFTable;
-    export type VFTable = CommandVFTable;
+    /** @deprecated import it from 'bdsx/minecraft'  */
+    export const VFTable = minecraft.Command.VFTable;
+    /** @deprecated import it from 'bdsx/minecraft'  */
+    export type VFTable = minecraft.Command.VFTable;
 }
+
+/** @deprecated use Command.VFTable in 'bdsx/minecraft'  */
+export const CommandVFTable = Command.VFTable;
+/** @deprecated use Command.VFTable in 'bdsx/minecraft'  */
+export type CommandVFTable = Command.VFTable;
 
 /** @deprecated */
 export class CommandRegistry extends HasTypeId {

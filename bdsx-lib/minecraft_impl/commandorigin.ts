@@ -3,6 +3,7 @@ import { dnf } from "../dnf";
 import { makefunc } from "../makefunc";
 import { Actor, BlockPos, CommandOrigin, Dimension, Level, mce, ScriptCommandOrigin, ServerCommandOrigin, ServerLevel, Vec3 } from "../minecraft";
 import { CxxString, void_t } from "../nativetype";
+import { minecraftTsReady } from "./ready";
 
 declare module "../minecraft" {
     interface CommandOrigin {
@@ -42,17 +43,11 @@ CommandOrigin.abstract({
     level:ServerLevel.ref(),
 });
 
-dnf(CommandOrigin, 'constructWith').overload(function(vftable:VoidPointer, level:ServerLevel):void{
-    this.vftable = vftable;
-    this.level = level;
-    this.uuid = mce.UUID.generate();
-}, VoidPointer, ServerLevel);
-
 CommandOrigin.prototype.isServerCommandOrigin = function():boolean {
-    return this.vftable.equals(ServerCommandOrigin.__vftable);
+    return this.vftable.equals(ServerCommandOrigin.addressof_vftable);
 };
 CommandOrigin.prototype.isScriptCommandOrigin = function():boolean {
-    return this.vftable.equals(ScriptCommandOrigin.__vftable);
+    return this.vftable.equals(ScriptCommandOrigin.addressof_vftable);
 };
 
 // void destruct(CommandOrigin* origin);
@@ -78,3 +73,11 @@ CommandOrigin.prototype.getDimension = makefunc.js([0x30], Dimension, {this: Com
 
 // Actor* getEntity(CommandOrigin* origin);
 CommandOrigin.prototype.getEntity = makefunc.js([0x38], Actor, {this: CommandOrigin});
+
+minecraftTsReady(()=>{
+    dnf(CommandOrigin, 'constructWith').overload(function(vftable:VoidPointer, level:ServerLevel):void{
+        this.vftable = vftable;
+        this.level = level;
+        this.uuid = mce.UUID.generate();
+    }, VoidPointer, ServerLevel);
+});

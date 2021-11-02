@@ -1,4 +1,4 @@
-import { ItemStack, Item as ItemRaw } from "../minecraft";
+import { ItemStack, Item as ItemRaw, Block } from "../minecraft";
 
 
 export class Item {
@@ -30,6 +30,21 @@ export class Item {
     getRawItem():ItemRaw {
         if (this.item !== null) return this.item;
         return this.item = this.itemStack!.getItem();
+    }
+
+    get isBlock():boolean {
+        const itemStack = this.getRawItemStack();
+        return itemStack.vftable === Block.addressof_vftable;
+    }
+
+    get id():ItemId {
+        const item = this.getRawItem();
+        if (item != null) {
+            const Name = item.getCommandName();
+            if (Name.includes(':')) return Name as any;
+            else return 'minecraft:' + Name as any;
+        }
+        return 'minecraft:air';
     }
 }
 

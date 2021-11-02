@@ -1,7 +1,8 @@
 import { VoidPointer } from "../core";
+import { dnf } from "../dnf";
 import { nativeClass, NativeClass, nativeField } from "../nativeclass";
 import { CxxString, NativeType } from "../nativetype";
-import { procHacker } from "./proc";
+import minecraft = require('../minecraft');
 
 @nativeClass()
 export class HashedString extends NativeClass {
@@ -20,4 +21,4 @@ export class HashedString extends NativeClass {
     }
 }
 const str_offset = HashedString.offsetOf('str');
-const computeHash = procHacker.js('?computeHash@HashedString@@SA_KAEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z', VoidPointer, null, VoidPointer);
+const computeHash = dnf(minecraft.HashedString.computeHash).reform(VoidPointer, null, VoidPointer);

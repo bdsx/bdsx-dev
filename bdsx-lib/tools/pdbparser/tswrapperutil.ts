@@ -1,4 +1,5 @@
 import { tsw } from "../lib/tswriter";
+import { unique } from "../lib/unique";
 import { TsFile, TsImportItem } from "./tsimport";
 import { tswNames } from "./tswnames";
 
@@ -11,22 +12,13 @@ function getFromMap(wrapper:wrapperUtil.Wrapper, component:tsw.ItemPair, getter:
         wrapper.wrappedMap = new WeakMap;
     }
     const out = getter();
+    const v = out.component.value;
     wrapper.wrappedMap.set(component, out);
+    unique.allocId(out);
     return out;
 }
 
-declare module "../lib/tswriter" {
-    namespace tsw {
-        interface ItemPair {
-            mapped?:wrapperUtil.Wrapper;
-        }
-    }
-}
-
 export namespace wrapperUtil {
-    export interface TsBase extends TsFile {
-        makeVariable(initial:tsw.Value):tsw.Name;
-    }
     export class WrappedItem extends tsw.ItemPair {
         public readonly value:tsw.Name;
         public readonly type:tsw.TemplateType;
@@ -66,6 +58,9 @@ export namespace wrapperUtil {
     export abstract class Wrapper extends tsw.ItemPair {
         wrappedMap?:WeakMap<tsw.ItemPair, WrappedItem>;
 
+        constructor(pair:tsw.ItemPair) {
+            super(pair.value, pair.type);
+        }
         is(pair:tsw.ItemPair):pair is WrappedItem {
             return pair instanceof WrappedItem && pair.wrapper === this;
         }
@@ -82,14 +77,13 @@ export namespace wrapperUtil {
     }
     export class DefaultWrapper extends Wrapper {
         constructor(
-            value:tsw.Value,
-            type:tsw.Type,
-            public readonly base:TsBase
+            pair:tsw.ItemPair,
+            public readonly base:TsFile
         ) {
-            super(value, type);
+            super(pair);
         }
         wrapValue(value:tsw.Value):tsw.Value {
-            return this.base.makeVariable(new tsw.DotCall(this.value, tswNames.make, [value]));
+            return unique.make(tsw.DotCall, this.value, tswNames.make, [value]);
         }
         wrapType(type:tsw.Type):tsw.Type {
             return new tsw.TemplateType(this.type, [type]);
@@ -100,7 +94,7 @@ export namespace wrapperUtil {
         public wrappedMap?:WeakMap<tsw.ItemPair, WrappedItem>;
 
         constructor(name:string) {
-            super(tsw.Constant.null, new tsw.TypeName(name));
+            super(new tsw.ItemPair(tsw.Constant.null, new tsw.TypeName(name)));
         }
 
         wrapValue(value:tsw.Value):tsw.Value {
@@ -115,7 +109,7 @@ export namespace wrapperUtil {
         public wrappedMap?:WeakMap<tsw.ItemPair, WrappedItem>;
 
         constructor(name:string) {
-            super(tsw.Constant.null, tsw.BasicType.null);
+            super(new tsw.ItemPair(tsw.Constant.null, tsw.BasicType.null));
             this.valueProp = new tsw.NameProperty(name);
         }
 
@@ -129,23 +123,19 @@ export namespace wrapperUtil {
 
     export class ImportItem extends TsImportItem {
         public variable:tsw.NamePair|null = null;
-        public readonly base:TsBase;
+        public readonly base:TsFile;
 
         constructor(
-            base:TsBase,
+            base:TsFile,
             from:TsFile,
             name:string,
-            public readonly wrapper:new(value:tsw.Value, type:tsw.Type, base:TsBase)=>Wrapper = DefaultWrapper) {
+            public readonly wrapper:new(value:tsw.ItemPair, base:TsFile)=>Wrapper = DefaultWrapper) {
             super(base, from, name);
         }
 
         import():Wrapper {
             const item = super.import();
-            if (item.mapped != null) return item.mapped;
-            const Wrapper = this.wrapper;
-            const wrapped = new Wrapper(item.value, item.type, this.base);
-            item.mapped = wrapped;
-            return wrapped;
+            return unique.make(this.wrapper, item, this.base);
         }
 
         wrap(component:tsw.ItemPair):tsw.ItemPair {

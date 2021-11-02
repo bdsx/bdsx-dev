@@ -2,7 +2,7 @@ import { hook } from "../hook";
 import { MinecraftPackets, Packet } from "../minecraft";
 import { int32_t, void_t } from "../nativetype";
 import { SharedPtr as BdsxSharedPtr } from "../sharedpointer";
-
+import { minecraftTsReady } from "./ready";
 
 declare module "../minecraft" {
     namespace MinecraftPackets {
@@ -13,4 +13,6 @@ declare module "../minecraft" {
     }
 }
 
-MinecraftPackets.createPacketRaw = hook(MinecraftPackets.createPacket).reform(void_t, null, BdsxSharedPtr.make(Packet), int32_t);
+minecraftTsReady(()=>{
+    MinecraftPackets.createPacketRaw = hook(MinecraftPackets.createPacket).reform(void_t, null, BdsxSharedPtr.make(Packet), int32_t);
+});

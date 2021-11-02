@@ -1,4 +1,4 @@
-import { AbstractClass } from "../../common";
+import { AbstractClass, unreachable } from "../../common";
 import { isBaseOf } from "../../util";
 import { PdbId } from "./symbolparser";
 
@@ -6,6 +6,7 @@ enum FieldType {
     Member,
     Static,
     InNamespace,
+    FunctionBase,
 }
 
 function getFieldType(item:PdbId<PdbId.Data>):FieldType {
@@ -20,7 +21,7 @@ function getFieldType(item:PdbId<PdbId.Data>):FieldType {
     return FieldType.InNamespace;
 }
 
-export class PdbMember<T extends PdbId.Data> {
+export class PdbIdSet<T extends PdbId.Data> {
     public readonly overloads:PdbId<T>[] = [];
     public isStatic:boolean;
 
@@ -29,7 +30,7 @@ export class PdbMember<T extends PdbId.Data> {
     constructor(public readonly base:PdbId<PdbId.Data>) {
     }
 
-    is<T extends PdbId.Data>(type:AbstractClass<T>):this is PdbMember<T> {
+    is<T extends PdbId.Data>(type:AbstractClass<T>):this is PdbIdSet<T> {
         if (this.type === null) {
             return false;
         }
@@ -49,18 +50,18 @@ export class PdbMember<T extends PdbId.Data> {
     }
 }
 
-class IdFieldMap implements Iterable<PdbMember<any>> {
+class IdFieldMap implements Iterable<PdbIdSet<any>> {
 
-    private readonly map = new Map<string, PdbMember<any>>();
+    private readonly map = new Map<string, PdbIdSet<any>>();
 
-    append(list:Iterable<PdbMember<any>>, isStatic:boolean):this {
+    append(list:Iterable<PdbIdSet<any>>, isStatic:boolean):this {
         for (const item of list) {
             this.get(item.base, isStatic).overloads.push(...item.overloads);
         }
         return this;
     }
 
-    get(base:PdbId<PdbId.Data>, isStatic:boolean):PdbMember<any> {
+    get(base:PdbId<PdbId.Data>, isStatic:boolean):PdbIdSet<any> {
         let nametarget:PdbId<PdbId.Data> = base;
         if (base.is(PdbId.Function)) {
             nametarget = base.data.functionBase;
@@ -82,7 +83,7 @@ class IdFieldMap implements Iterable<PdbMember<any>> {
 
         let field = this.map.get(name);
         if (field != null) return field;
-        field = new PdbMember(base);
+        field = new PdbIdSet(base);
         field.isStatic = isStatic;
 
         this.map.set(name, field);
@@ -97,11 +98,11 @@ class IdFieldMap implements Iterable<PdbMember<any>> {
         return this.map.size;
     }
 
-    values():IterableIterator<PdbMember<any>> {
+    values():IterableIterator<PdbIdSet<any>> {
         return this.map.values();
     }
 
-    [Symbol.iterator]():IterableIterator<PdbMember<any>> {
+    [Symbol.iterator]():IterableIterator<PdbIdSet<any>> {
         return this.map.values();
     }
 }
@@ -110,12 +111,17 @@ export class PdbMemberList {
     public readonly inNamespace = new IdFieldMap;
     public readonly staticMember = new IdFieldMap;
     public readonly member = new IdFieldMap;
+    public readonly functionBases = new IdFieldMap;
 
     push(base:PdbId<PdbId.Data>, item:PdbId<PdbId.Data>):void {
-        this.getMember(base, item).push(item);
+        this.getSet(base, item).push(item);
     }
 
-    getMember<T extends PdbId.Data>(base:PdbId<PdbId.Data>, item:PdbId<T> = base as any):PdbMember<T> {
+    getFunctionBaseSet(base:PdbId<PdbId.HasOverloads>):PdbIdSet<PdbId.Data> {
+        return this.functionBases.get(base, true);
+    }
+
+    getSet<T extends PdbId.Data>(base:PdbId<PdbId.Data>, item:PdbId<T> = base as any):PdbIdSet<T> {
         if (base.templateBase !== null) {
             throw Error('base is template');
         }
@@ -123,21 +129,25 @@ export class PdbMemberList {
         case FieldType.Member: return this.member.get(base, false);
         case FieldType.Static: return this.staticMember.get(base, true);
         case FieldType.InNamespace: return this.inNamespace.get(base, false);
+        default: unreachable();
         }
     }
 
-    sortedMember():PdbMember<any>[]{
+    sortedMember():PdbIdSet<any>[]{
         return [...this.member].sort(nameSort);
     }
-    sortedStaticMember():PdbMember<any>[]{
+    sortedStaticMember():PdbIdSet<any>[]{
         return [...this.staticMember].sort(nameSort);
     }
-    sortedInNamespace():PdbMember<any>[]{
+    sortedInNamespace():PdbIdSet<any>[]{
         return [...this.inNamespace].sort(nameSort);
+    }
+    sortedFunctionBases():PdbIdSet<any>[]{
+        return [...this.functionBases].sort(nameSort);
     }
 }
 
-function nameSort(a:PdbMember<any>, b:PdbMember<any>):number {
+function nameSort(a:PdbIdSet<any>, b:PdbIdSet<any>):number {
     return a.base.name.localeCompare(b.base.name);
 }
 

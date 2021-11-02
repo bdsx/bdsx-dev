@@ -1,9 +1,12 @@
-import { AbstractClass } from "../../common";
+import { AbstractClass, notImplemented } from "../../common";
 import { templateName } from "../../templatename";
 import { LanguageParser } from "../../textparser";
 import { arraySame, isBaseOf } from "../../util";
 import { PdbCache } from "./pdbcache";
+import fs = require('fs');
+import path = require('path');
 import ProgressBar = require('progress');
+import { DataFileStream } from "./datafilestream";
 
 export class DecoSymbol {
     public readonly needSpace:boolean;
@@ -211,7 +214,7 @@ class UnionBuilder {
         return getKey(PdbId.makeTypeUnionKey(array), key=>{
             const name = array.map(a=>a.name).join(unionOperator);
             const unioned = new PdbId<PdbId.TypeUnion>(name, key);
-            unioned.data = new PdbId.TypeUnion(unioned, unionOperator);
+            unioned.data = unionOperator === '&' ? new PdbId.AndTypeUnion(unioned) : new PdbId.OrTypeUnion(unioned);
             unioned.data.unionedTypes = this.types;
             return unioned;
         });
@@ -289,6 +292,29 @@ export class PdbId<DATA extends PdbId.Data> {
                 throw new IdError(`template base mismatched. (${this.templateBase} != ${base})`, this);
             }
         }
+    }
+    serialize(ds:DataFileStream):void {
+        ds.writeInt32(this.symbolIndex);
+        ds.writeInt32(this.id);
+        ds.writeString(this.originalName);
+        ds.writeInt32(this.address);
+        ds.writeString(this.source);
+
+        ds.writeBooleans(
+            this.deleted,
+            this.isPrivate,
+            this.isStatic,
+            this.isValue,
+            this.isConst,
+            this.isType,
+            this.isThunk,
+            this.isBasicType,
+            this.templateBase !== null,
+            this.templateParameters !== null,
+            this.params !== null,
+            this.modifier !== null,
+        );
+        this.data.serialize(ds);
     }
 
     static makeTypeUnionKey(types:PdbId<PdbId.Data>[]):string {
@@ -819,6 +845,12 @@ function makeConstFunction(base:PdbId<PdbId.Function>, kind:PdbId.FunctionKind):
     });
 }
 
+type DataType = {new(id:PdbId<any>):PdbId.Data, id:number};
+const pdbIdDataTypes:DataType[] = [];
+function pdbIdDataType(dataType:DataType):void {
+    dataType.id = pdbIdDataTypes.push(dataType)-1;
+}
+
 export namespace PdbId {
     export function printOnProgress(message:string):void {
         process.stdout.cursorTo(0);
@@ -828,7 +860,10 @@ export namespace PdbId {
     }
 
     export type FunctionKind = new(id:PdbId<Data>)=>PdbId.Function;
+    @pdbIdDataType
     export class Data {
+        public static id:number;
+
         constructor(public readonly id:PdbId<any>) {
         }
         makeFunctionTypeBase():PdbId<FunctionTypeBase> {
@@ -869,10 +904,17 @@ export namespace PdbId {
         convertTo<T extends Data>(type:new(id:PdbId<any>)=>T):T {
             throw new IdError(`Unexpected type converting (${this.constructor.name} -> ${type.name})`, this.id);
         }
+        serialize(ds:DataFileStream):void {
+            ds.writeInt32((this.constructor as DataType).id);
+        }
+        deserialize(ds:DataFileStream):void {
+            // empty
+        }
     }
     export interface HasOverloads extends Data {
         allOverloads():IterableIterator<PdbId<PdbId.Function>>;
     }
+    @pdbIdDataType
     export class NamespaceLike extends Data {
         private __isNamespaceLike?:void;
 
@@ -888,6 +930,7 @@ export namespace PdbId {
             }
         }
     }
+    @pdbIdDataType
     export class Namespace extends NamespaceLike {
     }
     export abstract class Constant extends Data {
@@ -901,6 +944,7 @@ export namespace PdbId {
             throw new IdError(`unexpected constant`, this.id);
         }
     }
+    @pdbIdDataType
     export class ConstantNumber extends Constant {
         public value:number;
 
@@ -910,7 +954,12 @@ export namespace PdbId {
         getTypeOfIt():PdbId<Data> {
             return PdbId.int_t;
         }
+        serialize(ds:DataFileStream):void {
+            super.serialize(ds);
+            ds.writeInt32(this.value);
+        }
     }
+    @pdbIdDataType
     export class ClassLike extends NamespaceLike {
         constructor(id:PdbId<Data>) {
             super(id);
@@ -925,8 +974,10 @@ export namespace PdbId {
             }
         }
     }
+    @pdbIdDataType
     export class Enum extends ClassLike {
     }
+    @pdbIdDataType
     export class Class extends ClassLike {
         canBeTemplateBase = false;
 
@@ -936,13 +987,18 @@ export namespace PdbId {
             }
             return super.convertTo(type);
         }
+        serialize(ds:DataFileStream):void {
+            super.serialize(ds);
+            ds.writeBooleans(this.canBeTemplateBase);
+        }
     }
+    @pdbIdDataType
     export class LambdaClass extends Class {
     }
-    export class TypeUnion extends Data {
+    export abstract class TypeUnion extends Data {
         public unionedTypes:Set<PdbId<Data>>;
 
-        constructor(id:PdbId<Data>, public readonly unionOperation:'&'|'|') {
+        constructor(id:PdbId<Data>) {
             super(id);
         }
         *_components():IterableIterator<PdbId<PdbId.Data>> {
@@ -950,8 +1006,22 @@ export namespace PdbId {
                 yield * type.componentsWithThis();
             }
         }
+        abstract getOperation():'&'|'|';
+    }
+    @pdbIdDataType
+    export class AndTypeUnion extends TypeUnion {
+        public getOperation():'&' {
+            return '&';
+        }
+    }
+    @pdbIdDataType
+    export class OrTypeUnion extends TypeUnion {
+        public getOperation():'|' {
+            return '|';
+        }
     }
 
+    @pdbIdDataType
     export class TemplateBase extends Data {
         public specialized:PdbId<Data>[] = [];
 
@@ -975,9 +1045,19 @@ export namespace PdbId {
             }
             return super.convertTo(type);
         }
+        serialize(ds:DataFileStream):void {
+            super.serialize(ds);
+            ds.writeArray(this.specialized, id=>ds.writeLeb128(id.id));
+        }
+        deserialize(ds:DataFileStream):void {
+            super.deserialize(ds);
+            notImplemented(); // TODO: get pdbids from id map
+        }
     }
+    @pdbIdDataType
     export class TemplateClassBase extends TemplateBase {
     }
+    @pdbIdDataType
     export class ReturnAble extends Data {
         public returnType:PdbId<Data>|null = void_t;
         *_components():IterableIterator<PdbId<Data>> {
@@ -992,12 +1072,14 @@ export namespace PdbId {
             return (this.returnType === null ? '[[null]]' : this.returnType)+' '+name;
         }
     }
+    @pdbIdDataType
     export class Variable extends ReturnAble {
         getTypeOfIt():PdbId<Data> {
             if (this.returnType === null) throw new IdError(`Unresolved variable type`, this.id);
             return this.returnType;
         }
     }
+    @pdbIdDataType
     export class FunctionBase extends Data implements HasOverloads {
         public isConstructor = false;
         public isDestructor = false;
@@ -1063,6 +1145,7 @@ export namespace PdbId {
             return super.convertTo(type);
         }
     }
+    @pdbIdDataType
     export class CastFunctionBase extends FunctionBase {
         castTo:PdbId<PdbId.Data>;
         moveTo(other:this):void {
@@ -1070,6 +1153,7 @@ export namespace PdbId {
             super.moveTo(other);
         }
     }
+    @pdbIdDataType
     export class TemplateFunctionBase extends FunctionBase implements HasOverloads {
         public specialized:PdbId<Data>[] = [];
 
@@ -1100,8 +1184,10 @@ export namespace PdbId {
             return makeSpecialized(this.id, args, source);
         }
     }
+    @pdbIdDataType
     export class FunctionTypeBase extends FunctionBase {
     }
+    @pdbIdDataType
     export class TemplateFunctionNameBase extends TemplateBase {
         makeSpecialized(args:PdbId<Data>[], source?:string):PdbId<Data> {
             const id = this.specialized[0];
@@ -1112,6 +1198,7 @@ export namespace PdbId {
             return id;
         }
     }
+    @pdbIdDataType
     export class Function extends ReturnAble {
         public isNoExcept = false;
         public isVirtual = false;
@@ -1174,16 +1261,19 @@ export namespace PdbId {
             super.moveTo(other);
         }
     }
+    @pdbIdDataType
     export class MemberPointerType extends Data {
         public type:PdbId<Data>;
         public memberPointerBase:PdbId<Class>;
     }
+    @pdbIdDataType
     export class FunctionType extends Function {
         private __isFunctionType?:void;
         makeConst():PdbId<PdbId.Function> {
             return makeConstFunction(this.id, PdbId.FunctionType);
         }
     }
+    @pdbIdDataType
     export class MemberFunctionType extends FunctionType {
         memberPointerBase:PdbId<Class>;
         makeConst():PdbId<PdbId.Function> {
@@ -1198,6 +1288,7 @@ export namespace PdbId {
     export abstract class KeyType extends Data {
         abstract unionWith(other:PdbId<Key>):PdbId<Keys>;
     }
+    @pdbIdDataType
     export class Key extends KeyType {
         public keyIndex:number;
 
@@ -1214,6 +1305,7 @@ export namespace PdbId {
             return key;
         }
     }
+    @pdbIdDataType
     export class Keys extends KeyType {
         public keys:Set<PdbId<Key>>;
 
@@ -1238,9 +1330,11 @@ export namespace PdbId {
             id.isStatic = true;
         }
     }
+    @pdbIdDataType
     export class Referenced extends TextName {
         public target:PdbId<Data>;
     }
+    @pdbIdDataType
     export class VTable extends Data {
         public for:PdbId<Data>;
 
@@ -1249,6 +1343,7 @@ export namespace PdbId {
             id.isStatic = true;
         }
     }
+    @pdbIdDataType
     export class VCall extends Data {
         param:PdbId<PdbId.Data>;
 
@@ -1259,8 +1354,10 @@ export namespace PdbId {
             return void_ptr_t;
         }
     }
+    @pdbIdDataType
     export class RTTIBaseClassDescriptor extends Variable {
     }
+    @pdbIdDataType
     export class Decorated extends Data {
         public base:PdbId<Data>;
         public deco:DecoSymbol;
@@ -1283,6 +1380,7 @@ export namespace PdbId {
             return super.getTypeOfIt();
         }
     }
+    @pdbIdDataType
     export class TypeDef extends Data {
         public typeDef:PdbId<Data>;
         constructor(id:PdbId<Data>) {
@@ -1717,7 +1815,10 @@ function parseIdentity(eof:string, info:{isTypeInside?:boolean, scope?:PdbId<Pdb
                         } else if (id.parent.name === fullName) {
                             id.determine(PdbId.FunctionBase);
                         } else if (id.parent.name === fullName.substr(1)) { // destructor expected
-                            id.determine(PdbId.FunctionBase);
+                            const data = id.determine(PdbId.FunctionBase);
+                            if (id.name.startsWith('~')) {
+                                data.isDestructor = true;
+                            }
                         } else {
                             id.determine(PdbId.LambdaClass);
                         }
@@ -2104,5 +2205,15 @@ PdbId.parse('class std::basic_stringbuf<char,class std::char_traits<char>,class 
 PdbId.parse('class std::basic_istringstream<char,class std::char_traits<char>,class std::allocator<char> >');
 PdbId.parse('class std::basic_ostringstream<char,class std::char_traits<char>,class std::allocator<char> >');
 PdbId.parse('class std::basic_stringstream<char,class std::char_traits<char>,class std::allocator<char> >');
+
+const CACHE_VERSION = 1;
+function serializeAll():void {
+    const ds = new DataFileStream(__dirname+path.sep+'pdbcacheparsed.bin', 'w');
+    ds.writeInt32(CACHE_VERSION);
+    for (const v of PdbId.keyMap.values()) {
+        v.serialize(ds);
+    }
+    ds.close();
+}
 
 parse();
