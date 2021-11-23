@@ -10,3 +10,6 @@
 	path = ken
 	url = https://github.com/karikera/ken.git
 	branch = master
+[submodule "client-side-tests"]
+	path = client-side-tests
+	url = https://github.com/bdsx/client-side-tests
