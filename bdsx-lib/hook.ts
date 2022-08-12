@@ -4,7 +4,7 @@ import { AnyFunction, emptyFunc, NonNullableParameters } from "./common";
 import { NativePointer, StaticPointer, VoidPointer } from "./core";
 import { disasm } from "./disassembler";
 import { dll } from "./dll";
-import { dnf } from "./dnf";
+import { dnf } from "./dnf/dnf";
 import { hacktool } from "./hacktool";
 import { makefunc, MakeFuncOptions } from "./makefunc";
 import { Type, UnwrapTypeArrayToArray, void_t } from "./nativetype";

@@ -3,7 +3,7 @@ import { asm } from "../assembler";
 import { bin } from "../bin";
 import { capi } from "../capi";
 import { NativePointer, StaticPointer } from "../core";
-import { dnf } from "../dnf";
+import { dnf } from "../dnf/dnf";
 import { CommandCheatFlag, CommandUsageFlag } from "../enums";
 import { JsonValue } from "../jsonvalue";
 import { makefunc } from "../makefunc";
@@ -16,7 +16,7 @@ import { Entity } from "./entity";
 import { events } from "./events";
 
 const commandVersion = CommandVersion.CurrentVersion;
-const commandContextRefCounterVftable = std._Ref_count_obj2.make(CommandContext).addressof_vftable;
+const commandContextRefCounterVftable = std._Ref_count_obj2.make(CommandContext).vftable;
 const CommandContextSharedPtr = SharedPtr.make(CommandContext);
 
 function createServerCommandOrigin(name:CxxString, level:ServerLevel, permissionLevel:number, dimension:DimensionId):CommandOrigin {

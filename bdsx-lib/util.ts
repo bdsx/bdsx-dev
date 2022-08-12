@@ -148,7 +148,7 @@ export function getLineAt(context:string, lineIndex:number):string {
     else return context.substring(idx, next);
 }
 
-export function isBaseOf<BASE>(t: unknown, base: AbstractClass<BASE>): t is AbstractClass<BASE> {
+export function isBaseOf<BASE extends AbstractClass<any>>(t: unknown, base: BASE): t is BASE {
     if (typeof t !== 'function') return false;
     if (t === base) return true;
     return t.prototype instanceof base;
@@ -177,7 +177,7 @@ export function str2array(str:string):number[]{
     return out;
 }
 
-export function arrayEquals(arr1:unknown[], arr2:unknown[], count?:number):boolean {
+export function arrayEquals(arr1:readonly unknown[], arr2:readonly unknown[], count?:number):boolean {
     if (count == null) {
         count = arr1.length;
         if (count !== arr2.length) return false;
@@ -292,7 +292,13 @@ export function inheritMultiple<T>(child:AbstractClass<T>, base:AbstractClass<T>
     }
     for (const key of Object.getOwnPropertyNames(base)) {
         if ((key in child)) continue;
-        child[key] = base[key];
+        (child as any)[key] = (base as any)[key];
+    }
+}
+
+export function * iterateAll<T>(...items:Iterable<T>[]):IterableIterator<T> {
+    for (const item of items) {
+        yield * item;
     }
 }
 
@@ -309,4 +315,61 @@ export namespace DeferPromise {
         prom.reject = reject!;
         return prom;
     }
+}
+
+const ADDSLASHES_REPLACE_MAP:Record<string, string> = {
+    __proto__:null as any,
+    '\0':'\\0',
+    '\r':'\\r',
+    '\n':'\\n',
+    '"':'\\"',
+    "'":"\\'",
+    "\\":"\\\\",
+};
+const STRIPSLASHES_REPLACE_MAP:Record<string, string> = {
+    __proto__:null as any,
+    '\\':'\\',
+    'n':'\n',
+    'r':'\r',
+    'b':'\b',
+    'v':'\v',
+    'f':'\f',
+    't':'\t',
+    '"':'"',
+    "'":"'",
+    '0':'\0',
+};
+export function addSlashes(str:string):string {
+    return str.replace(/[\r\n"'\\]/g, chr=>ADDSLASHES_REPLACE_MAP[chr]);
+}
+
+export function stripSlashes(str:string):string {
+    return str.replace(/(?:\\([\\nrbvft"'0])|\\u([0-9]{4})|\\x([0-9]{2}))/g, (matched, escape, xcode, ucode)=>{
+        if (xcode != null) {
+            return String.fromCharCode(parseInt(xcode, 16));
+        } else if (ucode != null) {
+            return String.fromCharCode(parseInt(ucode, 16));
+        } else {
+            return STRIPSLASHES_REPLACE_MAP[escape];
+        }
+    });
+}
+
+export function hashString(v:string):number {
+    const n = v.length;
+    let out = 0;
+    let shift = 0;
+    for (let i=0;i<n;i++) {
+        const chr = (v.charCodeAt(i) + i) | 0;
+        out = (out + ((chr << shift) | (chr >>> (32-shift)))) | 0;
+        shift = (shift + 7) & 0x1f;
+    }
+    out = (out + n) | 0;
+    return out >>> 0;
+}
+
+const NUMBER_ONLY = /^\d+$/;
+
+export function isNumberOnly(str:string):boolean {
+    return NUMBER_ONLY.test(str);
 }

@@ -4,7 +4,10 @@ import { capi } from "../capi";
 import { abstract } from "../common";
 import { NativePointer, StaticPointer, VoidPointer } from "../core";
 import { CxxVector } from "../cxxvector";
+import { dnf } from "../dnf/dnf";
+import * as enums from '../enums';
 import { makefunc } from "../makefunc";
+import * as minecraft from '../minecraft';
 import { KeysFilter, nativeClass, NativeClass, NativeClassType, nativeField } from "../nativeclass";
 import { bin64_t, bool_t, CxxString, float32_t, int16_t, int32_t, NativeType, Type, void_t } from "../nativetype";
 import { SharedPtr } from "../sharedpointer";
@@ -16,9 +19,6 @@ import { JsonValue } from "./connreq";
 import { AvailableCommandsPacket } from "./packets";
 import { procHacker } from "./proc";
 import { HasTypeId, typeid_t, type_id } from "./typeid";
-import { dnf } from "../dnf";
-import minecraft = require('../minecraft');
-import enums = require('../enums');
 
 /** @deprecated */
 export const CommandPermissionLevel = minecraft.CommandPermissionLevel;
@@ -85,12 +85,13 @@ CommandSelectorBase.prototype[NativeType.dtor] = minecraft.CommandSelectorBase[N
 export class WildcardCommandSelector<T> extends CommandSelectorBase {
 
     static make<T>(type:Type<T>):NativeClassType<WildcardCommandSelector<T>> {
-        class WildcardCommandSelectorImpl extends WildcardCommandSelector<T> {
-        }
-        Object.defineProperty(WildcardCommandSelectorImpl, 'name', {value: templateName('WildcardCommandSelector', type.name)});
-        WildcardCommandSelectorImpl.define({});
+        const name = templateName('WildcardCommandSelector', type.name);
+        const cls = {
+            [name]:class extends WildcardCommandSelector<T> {}
+        }[name];
+        cls.define({});
 
-        return WildcardCommandSelectorImpl;
+        return cls;
     }
 }
 

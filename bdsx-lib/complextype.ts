@@ -1,92 +1,112 @@
-import { VoidPointer, VoidPointerConstructor } from "./core";
+import { AnyFunction, notImplemented } from "./common";
+import { NativePointer, StaticPointer, VoidPointer, VoidPointerConstructor } from "./core";
 import { dll } from "./dll";
 import { FunctionFromTypes_js_without_pointer, makefunc, MakeFuncOptions, ParamType } from "./makefunc";
 import { NativeClass } from "./nativeclass";
-import { int32_t, NativeType, Type } from "./nativetype";
+import { int32_t, NativeType, Type as TypeId } from "./nativetype";
 import { Singleton } from "./singleton";
+import { serializeTypes } from "./typeserializer";
 
 const specializedList = Symbol('specializedList');
-
-function itemsEquals(items1:ArrayLike<unknown>, items2:ArrayLike<unknown>):boolean {
-    const n = items1.length;
-    if (n !== items2.length) return false;
-    for (let i=0;i<n;i++) {
-        const item1 = items1[i];
-        const item2 = items2[i];
-        if (item1 instanceof Array) {
-            if (!(item2 instanceof Array)) return false;
-            if (!itemsEquals(item1, item2)) return false;
-        } else {
-            if (item1 !== item2) return false;
-        }
-    }
-    return true;
-}
 
 interface TemplateClassConstructor {
     templates:any[];
     new():NativeTemplateClass;
 }
 
-function makeTemplateClass(cls:new()=>NativeTemplateClass, items:any[]):TemplateClassConstructor {
-    class SpecializedTemplateClass extends cls {
-        static readonly templates = items;
-    }
-    Object.defineProperty(SpecializedTemplateClass, 'name', {value: `${cls.name}<${items.map(item=>item.name || item.toString()).join(',')}>`});
-    return SpecializedTemplateClass;
-}
-
 export class NativeTemplateClass extends NativeClass {
     static readonly templates:any[];
-
-    static make(this:new()=>NativeTemplateClass, ...items:any[]):any{
-        let list:TemplateClassConstructor[] = (this as any)[specializedList];
+    private static [specializedList]?:Map<string, TemplateClassConstructor>;
+    protected static _makeGet(key:string):any {
+        const list = this[specializedList];
         if (list == null) {
-            (this as any)[specializedList] = list = [];
+            return undefined;
         } else {
-            for (const cls of list) {
-                if (itemsEquals(items, cls.templates)) return cls;
-            }
+            return list.get(key);
         }
-        const cls = makeTemplateClass(this, items);
-        list.push(cls);
-        return cls as any;
+    }
+    protected static _makeSet(key:string, value:TemplateClassConstructor):void {
+        let list = this[specializedList];
+        if (list == null) {
+            list = this[specializedList] = new Map;
+        }
+        list.set(key, value);
+    }
+    protected static _make(items:any[]):any {
+        const cls = this;
+        const name = `${cls.name}<${items.map(item=>item.name || item.toString()).join(',')}>`;
+        class Class extends cls {
+            static readonly templates = items;
+        }
+        Object.defineProperty(Class, 'name', {value:name});
+        return Class;
+    }
+    static make(...items:any[]):any{
+        const key = serializeTypes(items);
+        let list = this[specializedList];
+        if (list == null) {
+            this[specializedList] = list = new Map;
+        } else {
+            const found = list.get(key);
+            if (found != null) return found;
+        }
+        const cls = this._make(items);
+        list.set(key, cls);
+        return cls;
     }
 }
 
 const baseAddress = dll.base;
 
-export class NativeTemplateVariable<T> {
-    constructor(public readonly type:Type<T>, public readonly rva:number) {
+type TemplateFieldInfo = [number, TypeId<any>, string];
+export function makeNativeGetter(name:string, infos:TemplateFieldInfo[]):AnyFunction {
+    const fnmap:Record<string, TemplateFieldInfo> = Object.create(null);
+    for (const info of infos) {
+        fnmap[info[2]] = info;
     }
-
-    get value():T {
-        return this.type[NativeType.getter](baseAddress, this.rva);
+    function fn():any{
+        const key = serializeTypes(arguments);
+        const info = fnmap[key];
+        if (info == null) throw Error(`overload not found`);
+        const [rva, type] = info;
+        return type[NativeType.getter](dll.base, rva);
     }
-    set value(v:T) {
-        this.type[NativeType.setter](baseAddress, v, this.rva);
+    Object.defineProperty(fn, 'name', {value: name});
+    return fn;
+}
+export function makeNativeSetter(name:string, infos:TemplateFieldInfo[]):AnyFunction {
+    const fnmap:Record<string, TemplateFieldInfo> = Object.create(null);
+    for (const info of infos) {
+        fnmap[info[2]] = info;
     }
+    function fn(...args:unknown[]):void{
+        const value = args.pop();
+        const key = serializeTypes(args);
+        const info = fnmap[key];
+        if (info == null) throw Error(`overload not found`);
+        const [rva, type] = info;
+        return type[NativeType.setter](dll.base, value, rva);
+    }
+    Object.defineProperty(fn, 'name', {value: name});
+    return fn;
 }
-
-export function makeNativeGetter(infos:[number, Type<any>, any[]][]):()=>any {
-    return function (){
-        for (const [rva, type, args] of infos) {
-            if (itemsEquals(args, arguments)) return type[NativeType.getter](dll.base, rva);
-        }
-        throw Error(`overload not found`);
-    };
+type AddressTemplateFieldInfo = [number, string];
+export function makeAddressGetter(name:string, infos:AddressTemplateFieldInfo[]):AnyFunction {
+    const fnmap:Record<string, AddressTemplateFieldInfo> = Object.create(null);
+    for (const info of infos) {
+        fnmap[info[1]] = info;
+    }
+    function nf():NativePointer{
+        const key = serializeTypes(arguments);
+        const info = fnmap[key];
+        if (info == null) throw Error(`overload not found`);
+        const [rva] = info;
+        return dll.base.add(rva);
+    }
+    Object.defineProperty(nf, 'name', {value:name});
+    return nf;
 }
-export function defineNativeField<KEY extends keyof any, T>(target:{[key in KEY]:T}, key:KEY, rva:number, type:Type<T>):void {
-    Object.defineProperty(target, key, {
-        get():T {
-            return type[NativeType.getter](baseAddress, rva);
-        },
-        set(value:T):void {
-            return type[NativeType.setter](baseAddress, value, rva);
-        }
-    });
-}
-export function defineNativeAddressField<KEY extends keyof any, T>(target:{[key in KEY]:T}, key:KEY, rva:number, type:Type<T>):void {
+export function defineNativeField<KEY extends keyof any, T>(target:{[key in KEY]:T}, key:KEY, rva:number, type:TypeId<T>):void {
     Object.defineProperty(target, key, {
         get():T {
             return type[NativeType.getter](baseAddress, rva);
@@ -145,10 +165,10 @@ export interface MemberPointerType<B, T> extends VoidPointerConstructor {
 }
 
 export class MemberPointer<B, T> extends VoidPointer {
-    base:Type<B>;
-    type:Type<T>;
+    base:TypeId<B>;
+    type:TypeId<T>;
 
-    static make<B, T>(base:Type<B>, type:Type<T>):MemberPointerType<B, T> {
+    static make<B, T>(base:TypeId<B>, type:TypeId<T>):MemberPointerType<B, T> {
         class MemberPointerImpl extends MemberPointer<B, T> {
         }
         MemberPointerImpl.prototype.base = base;
@@ -157,21 +177,48 @@ export class MemberPointer<B, T> extends VoidPointer {
     }
 }
 
-export const NativeVarArgs = new NativeType<any[]>(
-    '...',
-    0,
-    0,
-    ()=>{ throw Error('Unexpected usage'); },
-    ()=>{ throw Error('Unexpected usage'); },
-    ()=>{ throw Error('Unexpected usage'); },
-    ()=>{ throw Error('Not implemented'); },
-    ()=>{ throw Error('Not implemented'); },
-    ()=>{ throw Error('Unexpected usage'); },
-    ()=>{ throw Error('Unexpected usage'); },
-    ()=>{ throw Error('Unexpected usage'); },
-    ()=>{ throw Error('Unexpected usage'); }
-);
-export type NativeVarArgs = any[];
+function unexpected():never {
+    throw Error('Unexpected usage');
+}
+
+export class NativeVarArgs {
+    public offset = 0;
+    constructor(
+        public readonly stackptr:StaticPointer,
+        private readonly startOffset:number) {
+        this.offset = this.startOffset;
+    }
+
+    static readonly [makefunc.useXmmRegister] = false;
+    static isTypeOf(v:unknown):v is NativeVarArgs {
+        return v instanceof NativeVarArgs;
+    }
+    static isTypeOfWeak(v:unknown):v is NativeVarArgs {
+        return v instanceof NativeVarArgs;
+    }
+    static [makefunc.getter](ptr:StaticPointer, offset?:number):NativeVarArgs {
+        unexpected();
+    }
+    static [makefunc.setter](ptr:StaticPointer, param:NativeVarArgs, offset?:number):void {
+        unexpected();
+    }
+    static [makefunc.getFromParam](stackptr:StaticPointer, offset?:number):NativeVarArgs {
+        return new NativeVarArgs(stackptr, offset || 0);
+    }
+    static [makefunc.setToParam](stackptr:StaticPointer, param:NativeVarArgs, offset?:number):void {
+        notImplemented();
+    }
+    static [makefunc.ctor_move](to:StaticPointer, from:StaticPointer):void {
+        unexpected();
+    }
+    static [makefunc.dtor](ptr:StaticPointer):void {
+        unexpected();
+    }
+    static get [makefunc.size]():number {
+        unexpected();
+        return 0;
+    }
+}
 
 export class EnumType<T> extends NativeType<T> {
     private constructor() {

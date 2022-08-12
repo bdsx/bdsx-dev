@@ -324,90 +324,94 @@ export abstract class CxxVector<T> extends NativeClass implements Iterable<T> {
         return Singleton.newInstance<CxxVectorType<T>>(CxxVector, t, ():CxxVectorType<T>=>{
             if (t[NativeType.size] == null) throw Error("CxxVector needs the component size");
 
+            const name = getVectorName(t);
             if (NativeClass.isNativeClassType(t)) {
-                class VectorImpl extends CxxVector<NativeClass> {
-                    componentType:NativeClassType<NativeClass>;
-                    static readonly componentType:NativeClassType<NativeClass> = t as any;
-                    private readonly cache:(NativeClass|undefined)[] = [];
+                const cls = {
+                    [name]: class extends CxxVector<NativeClass> {
+                        componentType:NativeClassType<NativeClass>;
+                        static readonly componentType:NativeClassType<NativeClass> = t as any;
+                        private readonly cache:(NativeClass|undefined)[] = [];
 
-                    protected _resizeCache(size:number):void {
-                        this.cache.length = size;
-                    }
-
-                    protected _move_alloc(allocated:NativePointer, oldptr:VoidPointer, movesize:number):void {
-                        const clazz = this.componentType;
-                        const compsize = this.componentType[NativeType.size];
-                        const oldptrmove = oldptr.add();
-                        for (let i=0;i<movesize;i++) {
-                            const new_item:NativeClass = allocated.as(clazz);
-                            const old_item = this._get(oldptrmove, i);
-                            this.cache[i] = new_item;
-
-                            new_item[NativeType.ctor_move](old_item);
-                            old_item[NativeType.dtor]();
-                            allocated.move(compsize);
-                            oldptrmove.move(compsize);
+                        protected _resizeCache(size:number):void {
+                            this.cache.length = size;
                         }
-                        this.cache.length = 0;
-                    }
 
-                    protected _get(ptr:NativePointer, index:number):NativeClass{
-                        const item = this.cache[index];
-                        if (item != null) return item;
-                        const type = this.componentType;
-                        return this.cache[index] = ptr.as(type);
+                        protected _move_alloc(allocated:NativePointer, oldptr:VoidPointer, movesize:number):void {
+                            const clazz = this.componentType;
+                            const compsize = this.componentType[NativeType.size];
+                            const oldptrmove = oldptr.add();
+                            for (let i=0;i<movesize;i++) {
+                                const new_item:NativeClass = allocated.as(clazz);
+                                const old_item = this._get(oldptrmove, i);
+                                this.cache[i] = new_item;
+
+                                new_item[NativeType.ctor_move](old_item);
+                                old_item[NativeType.dtor]();
+                                allocated.move(compsize);
+                                oldptrmove.move(compsize);
+                            }
+                            this.cache.length = 0;
+                        }
+
+                        protected _get(ptr:NativePointer, index:number):NativeClass{
+                            const item = this.cache[index];
+                            if (item != null) return item;
+                            const type = this.componentType;
+                            return this.cache[index] = ptr.as(type);
+                        }
+                        protected _dtor(ptr:NativePointer, index:number):void{
+                            this._get(ptr, index)[NativeType.dtor]();
+                        }
+                        protected _ctor(ptr:NativePointer, index:number):void{
+                            this._get(ptr, index)[NativeType.ctor]();
+                        }
+                        protected _copy(ptr:NativePointer, from:NativeClass, index:number):void{
+                            this._get(ptr, index)[NativeType.setter](from);
+                        }
                     }
-                    protected _dtor(ptr:NativePointer, index:number):void{
-                        this._get(ptr, index)[NativeType.dtor]();
-                    }
-                    protected _ctor(ptr:NativePointer, index:number):void{
-                        this._get(ptr, index)[NativeType.ctor]();
-                    }
-                    protected _copy(ptr:NativePointer, from:NativeClass, index:number):void{
-                        this._get(ptr, index)[NativeType.setter](from);
-                    }
-                }
-                Object.defineProperty(VectorImpl, 'name', {value:getVectorName(t)});
-                VectorImpl.prototype.componentType = t;
-                VectorImpl.abstract({}, VECTOR_SIZE, 8);
-                return VectorImpl as any;
+                }[name];
+                cls.prototype.componentType = t;
+                cls.abstract({}, VECTOR_SIZE, 8);
+                return cls as any;
             } else {
-                class VectorImpl extends CxxVector<T> {
-                    componentType:Type<T>;
-                    static readonly componentType:Type<T> = t;
+                const cls = {
+                    [name]: class extends CxxVector<T> {
+                        componentType:Type<T>;
+                        static readonly componentType:Type<T> = t;
 
-                    protected _move_alloc(allocated:NativePointer, oldptr:VoidPointer, movesize:number):void {
-                        const compsize = this.componentType[NativeType.size];
-                        const oldptrmove = oldptr.add();
-                        for (let i=0;i<movesize;i++) {
-                            this.componentType[NativeType.ctor_move](allocated, oldptrmove);
-                            this.componentType[NativeType.dtor](oldptrmove);
-                            allocated.move(compsize);
-                            oldptrmove.move(compsize);
+                        protected _move_alloc(allocated:NativePointer, oldptr:VoidPointer, movesize:number):void {
+                            const compsize = this.componentType[NativeType.size];
+                            const oldptrmove = oldptr.add();
+                            for (let i=0;i<movesize;i++) {
+                                this.componentType[NativeType.ctor_move](allocated, oldptrmove);
+                                this.componentType[NativeType.dtor](oldptrmove);
+                                allocated.move(compsize);
+                                oldptrmove.move(compsize);
+                            }
+                        }
+
+                        protected _get(ptr:NativePointer):T{
+                            const type = this.componentType;
+                            return type[NativeType.getter](ptr);
+                        }
+                        protected _dtor(ptr:NativePointer):void{
+                            const type = this.componentType;
+                            type[NativeType.dtor](ptr);
+                        }
+                        protected _ctor(ptr:NativePointer):void{
+                            const type = this.componentType;
+                            type[NativeType.ctor](ptr);
+                        }
+                        protected _copy(ptr:NativePointer, from:T):void{
+                            const type = this.componentType;
+                            type[NativeType.setter](ptr, from);
                         }
                     }
+                }[name];
 
-                    protected _get(ptr:NativePointer):T{
-                        const type = this.componentType;
-                        return type[NativeType.getter](ptr);
-                    }
-                    protected _dtor(ptr:NativePointer):void{
-                        const type = this.componentType;
-                        type[NativeType.dtor](ptr);
-                    }
-                    protected _ctor(ptr:NativePointer):void{
-                        const type = this.componentType;
-                        type[NativeType.ctor](ptr);
-                    }
-                    protected _copy(ptr:NativePointer, from:T):void{
-                        const type = this.componentType;
-                        type[NativeType.setter](ptr, from);
-                    }
-                }
-                Object.defineProperty(VectorImpl, 'name', {value:getVectorName(t)});
-                VectorImpl.prototype.componentType = t;
-                VectorImpl.abstract({}, VECTOR_SIZE, 8);
-                return VectorImpl;
+                cls.prototype.componentType = t;
+                cls.abstract({}, VECTOR_SIZE, 8);
+                return cls;
             }
         });
     }
@@ -455,6 +459,7 @@ class CxxVectorToArrayImpl<T> extends NativeType<T[]> {
 }
 
 export namespace CxxVectorToArray {
+    export const name = 'CxxVectorToArray';
     export function make<T>(compType:Type<T>):NativeType<T[]> {
         return Singleton.newInstance<NativeType<T[]>>(CxxVectorToArrayImpl, compType, ()=>new CxxVectorToArrayImpl<T>(compType));
     }

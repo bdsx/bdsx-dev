@@ -7,7 +7,7 @@ import { dllraw } from "./dllraw";
 import { FunctionGen } from "./functiongen";
 import { isBaseOf } from "./util";
 import util = require('util');
-import minecraft = require('./minecraft');
+import { serializeTypes } from "./typeserializer";
 
 export type ParamType = makefunc.Paramable;
 
@@ -28,7 +28,7 @@ function initFunctionMap():void {
     asmcode.uv_async_alloc = uv_async.alloc;
     asmcode.uv_async_post = uv_async.post;
     asmcode.uv_async_call = uv_async.call;
-    asmcode.vsnprintf = minecraft.addressof_vsnprintf;
+    asmcode.vsnprintf = dllraw.bedrock_server.vsnprintf;
 
     asmcode.js_null = chakraUtil.asJsValueRef(null);
     asmcode.js_undefined = chakraUtil.asJsValueRef(undefined);
@@ -138,22 +138,10 @@ export type FunctionFromTypes_js_without_pointer<
     RETURN extends ParamType> =
     ((this:GetThisFromOpts<OPTS>, ...args: TypesFromParamIds_js2np<PARAMS>) => TypeFrom_np2js<RETURN>);
 
-const typeIndex = Symbol('typeIndex');
 export interface TypeIn<T> extends makefunc.Paramable {
-    [typeIndex]?:number;
+    [serializeTypes.typeId]?:number;
     name:string;
     prototype:T;
-}
-
-let typeIndexCounter = 0;
-export namespace TypeIn {
-    export function getIndex(this:TypeIn<any>):number {
-        let v = this[typeIndex];
-        if (v == null) {
-            v = this[typeIndex] = ++typeIndexCounter;
-        }
-        return v;
-    }
 }
 
 function invalidParameterError(paramName:string, expected:string, actual:unknown):never {
@@ -204,6 +192,8 @@ export namespace makefunc {
         isTypeOfWeak(v:unknown):boolean;
     }
     export class ParamableT<T, InputType=T> implements TypeIn<T> {
+        [serializeTypes.typeId]?:number=undefined;
+
         constructor(
             public readonly name:string,
             _getFromParam:(stackptr:StaticPointer, offset?:number)=>T|null,
@@ -216,14 +206,9 @@ export namespace makefunc {
             this[ctor_move] = _ctor_move;
             this.isTypeOf = isTypeOf as any;
             this.isTypeOfWeak = isTypeOfWeak as any;
-            this.getIndex();
-        }
-        getIndex():number {
-            abstract();
         }
     }
     ParamableT.prototype[useXmmRegister] = false;
-    ParamableT.prototype.getIndex = TypeIn.getIndex;
 
     /**
      * allocate temporal memory for using in NativeType

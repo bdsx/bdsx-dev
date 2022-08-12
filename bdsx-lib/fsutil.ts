@@ -229,12 +229,11 @@ export namespace fsutil {
         } catch (err) {
             if (err.code === 'EEXIST') {
                 return true;
-            } else if (err.code === 'ENOENT') {
-                await mkdirRecursiveFromBack(path.dirname(dir));
-            } else {
+            } else if (['EACCES', 'EPERM', 'EISDIR'].indexOf(err.code) !== -1) {
                 throw err;
             }
         }
+        await mkdirRecursiveFromBack(path.dirname(dir));
         try {
             await mkdirRaw(dir);
         } catch (err) {
@@ -246,7 +245,29 @@ export namespace fsutil {
         }
         return false;
     }
-
+    export function mkdirRecursiveSync(dir:string):boolean {
+        try {
+            fs.mkdirSync(dir);
+            return false;
+        } catch (err) {
+            if (err.code === 'EEXIST') {
+                return true;
+            } else if (['EACCES', 'EPERM', 'EISDIR'].indexOf(err.code) !== -1) {
+                throw err;
+            }
+        }
+        mkdirRecursiveSync(path.dirname(dir));
+        try {
+            fs.mkdirSync(dir);
+        } catch (err) {
+            if (err.code === 'EEXIST') {
+                return true;
+            } else {
+                throw err;
+            }
+        }
+        return false;
+    }
     export function rmdir(path:string):Promise<void> {
         return new Promise((resolve, reject)=>{
             fs.rmdir(path, (err)=>{

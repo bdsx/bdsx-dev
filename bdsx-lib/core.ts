@@ -2,6 +2,7 @@
 import { Bufferable, Encoding, TypeFromEncoding } from "./common";
 
 export interface VoidPointerConstructor {
+    /** @deprecated use null instead */
     new():VoidPointer;
     prototype:VoidPointer;
 
@@ -300,7 +301,12 @@ export declare class StructurePointer extends PrivatePointer {
     static readonly nativeCtor:unique symbol;
     static readonly nativeDtor:unique symbol;
     static [StructurePointer.contentSize]:number;
-    constructor(allocateItSelf?:boolean);
+    /** @deprecated use null instead */
+    constructor();
+    /** @deprecated why want to use it? */
+    constructor(allocateItSelf:false);
+
+    constructor(allocateItSelf:true);
 }
 
 /**

@@ -97,53 +97,55 @@ export abstract class SharedPtr<T> extends NativeClass {
         const t = type as Type<T>;
         return Singleton.newInstance(SharedPtr, t, ()=>{
             const Base = SharedPtrBase.make(t);
-            class TypedSharedPtr extends SharedPtr<NativeClass> {
-                p:T|null;
-                ref:SharedPtrBase<T>|null;
+            const name = templateName('std::shared_ptr', t.name);
+            const cls = {
+                [name]: class extends SharedPtr<NativeClass> {
+                    p:T|null;
+                    ref:SharedPtrBase<T>|null;
 
-                [NativeType.ctor]():void {
-                    this.setPointer(null, 0);
-                    this.ref = null;
-                }
-
-                create(vftable:VoidPointer):void {
-                    const size = Base[NativeType.size];
-                    if (size === null) throw Error(`cannot allocate the non sized class`);
-                    this.ref = capi.malloc(size).as(Base);
-                    this.ref.vftable = vftable;
-                    this.ref.construct();
-                    this.setPointer(this.ref.add(sizeOfSharedPtrBase), 0);
-                }
-                [NativeType.ctor_copy](value:SharedPtr<T>):void {
-                    this.setPointer((value as this).getPointer(0), 0);
-                    this.ref = value.ref;
-                    if (this.ref !== null) this.ref.addRef();
-                }
-                [NativeType.ctor_move](value:SharedPtr<T>):void {
-                    this.setPointer((value as this).getPointer(0), 0);
-                    this.ref = value.ref;
-                    (value as this).setPointer(null, 0);
-                    (value as this).ref = null;
-                }
-                ctor_move(value:SharedPtr<T>):void {
-                    this.setPointer((value as any).getPointer(0), 0);
-                    this.ref = value.ref;
-                    (value as this).ref = null;
-                }
-                dispose():void {
-                    if (this.ref !== null) {
-                        this.ref.release();
+                    [NativeType.ctor]():void {
+                        this.setPointer(null, 0);
                         this.ref = null;
                     }
-                    this.setPointer(null, 0);
+
+                    create(vftable:VoidPointer):void {
+                        const size = Base[NativeType.size];
+                        if (size === null) throw Error(`cannot allocate the non sized class`);
+                        this.ref = capi.malloc(size).as(Base);
+                        this.ref.vftable = vftable;
+                        this.ref.construct();
+                        this.setPointer(this.ref.add(sizeOfSharedPtrBase), 0);
+                    }
+                    [NativeType.ctor_copy](value:SharedPtr<T>):void {
+                        this.setPointer((value as this).getPointer(0), 0);
+                        this.ref = value.ref;
+                        if (this.ref !== null) this.ref.addRef();
+                    }
+                    [NativeType.ctor_move](value:SharedPtr<T>):void {
+                        this.setPointer((value as this).getPointer(0), 0);
+                        this.ref = value.ref;
+                        (value as this).setPointer(null, 0);
+                        (value as this).ref = null;
+                    }
+                    ctor_move(value:SharedPtr<T>):void {
+                        this.setPointer((value as any).getPointer(0), 0);
+                        this.ref = value.ref;
+                        (value as this).ref = null;
+                    }
+                    dispose():void {
+                        if (this.ref !== null) {
+                            this.ref.release();
+                            this.ref = null;
+                        }
+                        this.setPointer(null, 0);
+                    }
                 }
-            }
-            Object.defineProperty(TypedSharedPtr, 'name', {value:templateName('std::shared_ptr', t.name)});
-            TypedSharedPtr.define({
+            }[name];
+            cls.define({
                 p:t.ref(),
                 ref:Base.ref(),
             } as any);
-            return TypedSharedPtr as any;
+            return cls as any;
         });
     }
 }

@@ -7,7 +7,6 @@ interface Identifier extends PdbId<PdbId.Data> {
 }
 
 class ReplacingMap {
-
     private replacedCount = 0;
 
     constructor(public item:Identifier) {

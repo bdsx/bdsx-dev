@@ -1,5 +1,5 @@
 import { VoidPointer } from "../core";
-import { dnf } from "../dnf";
+import { dnf } from "../dnf/dnf";
 import { nativeClass, NativeClass, nativeField } from "../nativeclass";
 import { CxxString, NativeType } from "../nativetype";
 import minecraft = require('../minecraft');

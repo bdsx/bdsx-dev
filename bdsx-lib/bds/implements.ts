@@ -127,7 +127,7 @@ Actor.summonAt = function(region: BlockSource, pos: Vec3, type: ActorDefinitionI
         ptr.setBin(id);
         break;
     }
-    return CommandUtils$spawnEntityAt(region, pos, type, ptr, summoner ?? new VoidPointer());
+    return CommandUtils$spawnEntityAt(region, pos, type, ptr, summoner!);
 };
 (Actor.prototype as any)._getArmorValue = procHacker.js("Mob::getArmorValue", int32_t, {this:Actor});
 Actor.prototype.getAttributes = procHacker.js('Actor::getAttributes', BaseAttributeMap.ref(), {this:Actor, structureReturn: true});

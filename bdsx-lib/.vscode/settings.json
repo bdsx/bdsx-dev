@@ -7,8 +7,5 @@
     "files.exclude": {
         "**/*.bundle.js": true,
         "**/*.bundle.js.map": true
-    },
-    "search.exclude": {
-        "minecraft.js": true
     }
 }

@@ -1,7 +1,5 @@
 // enums but not found in BDS symbols
 
-import './minecraft_impl/enums';
-
 export enum PistonAction {
     Extend = 1,
     Retract = 3,

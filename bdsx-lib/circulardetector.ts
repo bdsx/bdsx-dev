@@ -15,10 +15,9 @@ export class CircularDetector {
         if (options.seen.length === 0) {
             name += `<${options.stylize(instance.toString(), 'number')}>`;
         }
-
-        class DummyClass {}
-        Object.defineProperty(DummyClass, 'name', { value: name });
-        return DummyClass as any;
+        class Class {}
+        Object.defineProperty(Class, 'name', {value:name});
+        return Class;
     }
 
     check<T>(instance:VoidPointer, allocator:()=>T, cb:(value:T)=>void):T {

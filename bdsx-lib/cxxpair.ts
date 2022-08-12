@@ -51,25 +51,28 @@ export abstract class CxxPair<T1, T2> extends NativeClass {
     static make<T1, T2>(firstType:Type<T1>, secondType:Type<T2>):CxxPairType<T1, T2> {
         const key = combineObjectKey(firstType, secondType);
         return Singleton.newInstance(CxxPair, key, ()=>{
-            class CxxPairImpl extends CxxPair<T1, T2> {
-                firstType:Type<T1>;
-                secondType:Type<T2>;
-                static readonly firstType:Type<T1> = firstType;
-                static readonly secondType:Type<T2> = secondType;
-                setFirst(first:T1):void {
-                    abstract();
+            const name = getPairName(firstType, secondType);
+            const cls = {
+                [name]: class extends CxxPair<T1, T2> {
+                    firstType:Type<T1>;
+                    secondType:Type<T2>;
+                    static readonly firstType:Type<T1> = firstType;
+                    static readonly secondType:Type<T2> = secondType;
+                    setFirst(first:T1):void {
+                        abstract();
+                    }
+                    setSecond(second:T2):void {
+                        abstract();
+                    }
                 }
-                setSecond(second:T2):void {
-                    abstract();
-                }
-            }
-            CxxPairImpl.prototype.setFirst = isBaseOf(firstType, NativeClass) ? setFirstWithClass : setFirstWithPrimitive;
-            CxxPairImpl.prototype.setSecond = isBaseOf(secondType, NativeClass) ? setSecondWithClass : setSecondWithPrimitive;
-            Object.defineProperty(CxxPairImpl, 'name', {value:getPairName(firstType, secondType)});
-            CxxPairImpl.prototype.firstType = firstType;
-            CxxPairImpl.prototype.secondType = secondType;
-            CxxPairImpl.define({ first: firstType, second: secondType } as any);
-            return CxxPairImpl;
+            }[name];
+
+            cls.prototype.setFirst = isBaseOf(firstType, NativeClass) ? setFirstWithClass : setFirstWithPrimitive;
+            cls.prototype.setSecond = isBaseOf(secondType, NativeClass) ? setSecondWithClass : setSecondWithPrimitive;
+            cls.prototype.firstType = firstType;
+            cls.prototype.secondType = secondType;
+            cls.define({ first: firstType, second: secondType } as any);
+            return cls;
         });
     }
 }

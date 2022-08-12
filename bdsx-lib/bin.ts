@@ -468,4 +468,18 @@ export namespace bin {
         if (n > 4) return v.substr(0, 4);
         return v+'\0'.repeat(4-n);
     }
+    export function compare(a:string, b:string):number {
+        const alen = a.length;
+        const blen = b.length;
+
+        let diff = blen - alen;
+        if (diff !== 0) return diff;
+
+        for (let i=0;i<blen;i++) {
+            diff = b.charCodeAt(i) - a.charCodeAt(i);
+            if (diff !== 0) return diff;
+        }
+        return 0;
+    }
 }
+

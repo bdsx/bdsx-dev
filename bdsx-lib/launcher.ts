@@ -10,7 +10,6 @@ import { GetLine } from "./getline";
 import { hook } from "./hook";
 import { makefunc } from "./makefunc";
 import { mcglobal } from "./mcglobal";
-import "./minecraft_impl";
 import { CxxString, int32_t, int64_as_float_t, NativeType, void_t } from "./nativetype";
 import { CxxStringWrapper } from "./pointer";
 import { remapAndPrintError, remapError } from "./source-map-support";

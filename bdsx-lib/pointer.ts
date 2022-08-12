@@ -19,15 +19,17 @@ export abstract class Wrapper<T> extends NativeClass {
     static readonly type:Type<unknown>;
 
     static make<T>(type:Type<T>):WrapperType<T>{
-        class TypedWrapper extends Wrapper<T>{
-            value:any;
-            type:Type<T>;
-            static readonly type:Type<T> = type;
-        }
-        Object.defineProperty(TypedWrapper, 'name', {value: type.name});
-        TypedWrapper.prototype.type = type;
-        TypedWrapper.define({value:type});
-        return TypedWrapper;
+        const name = type.name;
+        const cls = {
+            [name]:class extends Wrapper<T>{
+                value:any;
+                type:Type<T>;
+                static readonly type:Type<T> = type;
+            }
+        }[name];
+        cls.prototype.type = type;
+        cls.define({value:type});
+        return cls;
     }
 
     static [NativeType.ctor_copy](to:StaticPointer, from:StaticPointer):void{

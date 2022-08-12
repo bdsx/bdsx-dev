@@ -28,7 +28,6 @@ for (let i=0;i<PACKET_EVENT_COUNT;i++) {
     packetAllTargets[i] = null;
 }
 
-
 /** @deprecated use bdsx.events */
 export namespace events {
 

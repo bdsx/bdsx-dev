@@ -5,6 +5,7 @@ import { tsw } from "../lib/tswriter";
 interface Identifier extends PdbId<PdbId.Data> {
     templateInfo?:TemplateInfo;
     filted?:boolean;
+    isFullVariadic?:boolean;
 }
 
 export class TemplateDeclParam {
@@ -16,6 +17,18 @@ export class TemplateDeclParam {
     ) {
     }
 }
+
+function setFullVariadic(target:Identifier):void {
+    if (!target.is(PdbId.TemplateBase)) return;
+    target.isFullVariadic = true;
+}
+
+const meta_factory = PdbId.global.getChild('meta_factory')!;
+setFullVariadic(meta_factory);
+for (const item of meta_factory.getAllChild('meta_any')) {
+    setFullVariadic(item);
+}
+setFullVariadic(PdbId.global.getChild('entt')!.getChild('meta_factory')!);
 
 export class TemplateInfo {
     constructor(
@@ -67,7 +80,8 @@ export class TemplateInfo {
                 if (param.type === PdbId.any_t) {
                     out.push([param.name]);
                 } else {
-                    out.push([param.name, toTsw(param.type)]);
+                    const type = toTsw(param.type);
+                    out.push([param.name, type]);
                 }
             }
         }
@@ -171,10 +185,14 @@ export class TemplateInfo {
                 if (data.specialized.length !== 0) {
                     const first = data.specialized[0];
                     let count = first.templateParameters!.length;
-                    const slen = data.specialized.length;
-                    for (let i=1;i<slen;i++) {
-                        const n = data.specialized[i].templateParameters!.length;
-                        if (n < count) count = n;
+                    if (item.isFullVariadic) {
+                        count = 0;
+                    } else {
+                        const slen = data.specialized.length;
+                        for (let i=1;i<slen;i++) {
+                            const n = data.specialized[i].templateParameters!.length;
+                            if (n < count) count = n;
+                        }
                     }
                     for (const s of data.specialized) {
                         if (!PdbId.filter(s)) continue;

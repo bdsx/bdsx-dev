@@ -5,6 +5,26 @@
 
 declare global {
 
+interface IBlock {
+    /**
+     * This is the identifier for the object in the format namespace:name. For example, if the type is block and the object is representing a block of bedrock, the identifier would be minecraft:bedrock
+     */
+    readonly __identifier__:BlockId;
+    /**
+     * This defines the type of object.
+     */
+    readonly __type__:"block";
+    /**
+     * This is the position of the block and it functions as part of its unique identifier.
+     */
+    readonly block_position:VectorXYZ;
+    /**
+     * JavaScript Object.
+     * This is the ticking area object that was used to get this block.
+     */
+    readonly ticking_area:ITickingArea;
+}
+
 interface IEntity {
     /**
      * This is the identifier for the object in the format namespace:name. For example, if the type is entity and the object is representing a vanilla cow, the identifier would be minecraft:cow
@@ -22,28 +42,16 @@ interface IEntity {
     __unique_id__:Int64;
 }
 
-interface ILevel {
+interface IEntityTickingArea {
     /**
      * This defines the type of object.
      */
-    readonly __type__:"level";
+    readonly __type__:"entity_ticking_area";
     /**
      * Positive Integer.
-     * This is the unique identifier of the level.
+     * This is the unique identifier of the ticking area.
      */
-    readonly level_id:number;
-}
-
-interface IQuery {
-    /**
-     * This defines the type of object.
-     */
-    readonly __type__:"query";
-    /**
-     * Positive Integer.
-     * This is the unique identifier of the query.
-     */
-    readonly query_id:number;
+    readonly entity_ticking_area_id:Int64;
 }
 
 interface IItemStack {
@@ -66,38 +74,16 @@ interface IItemStack {
     name:ItemId;
 }
 
-interface IBlock {
-    /**
-     * This is the identifier for the object in the format namespace:name. For example, if the type is block and the object is representing a block of bedrock, the identifier would be minecraft:bedrock
-     */
-    readonly __identifier__:BlockId;
+interface ILevel {
     /**
      * This defines the type of object.
      */
-    readonly __type__:"block";
-    /**
-     * This is the position of the block and it functions as part of its unique identifier.
-     */
-    readonly block_position:VectorXYZ;
-    /**
-     * JavaScript Object.
-     * This is the ticking area object that was used to get this block.
-     */
-    readonly ticking_area:ITickingArea;
-}
-
-type ITickingArea = IEntityTickingArea | ILevelTickingArea;
-
-interface IEntityTickingArea {
-    /**
-     * This defines the type of object.
-     */
-    readonly __type__:"entity_ticking_area";
+    readonly __type__:"level";
     /**
      * Positive Integer.
-     * This is the unique identifier of the ticking area.
+     * This is the unique identifier of the level.
      */
-    readonly entity_ticking_area_id:Int64;
+    readonly level_id:number;
 }
 
 interface ILevelTickingArea {
@@ -111,10 +97,19 @@ interface ILevelTickingArea {
     readonly level_ticking_area_id:string;
 }
 
-/**
- * Not documented
- */
-type ITickingAreasComponent = any;
+interface IQuery {
+    /**
+     * This defines the type of object.
+     */
+    readonly __type__:"query";
+    /**
+     * Positive Integer.
+     * This is the unique identifier of the query.
+     */
+    readonly query_id:number;
+}
+
+type ITickingArea = IEntityTickingArea | ILevelTickingArea;
 
 interface IWeatherComponent {
     /**
@@ -141,8 +136,6 @@ interface IWeatherComponent {
     rain_time:number;
 }
 
-type IArmorContainerComponent = IItemStack[];
-
 interface IAttackComponent {
     /**
      * Range of the random amount of damage the melee attack deals. A negative value can heal the entity instead of hurting it
@@ -160,11 +153,6 @@ interface IAttackComponent {
         range_min:number
     };
 }
-
-/**
- * Not documented
- */
-type IContainerComponent = any;
 
 interface ICollisionBoxComponent {
     /**
@@ -335,8 +323,6 @@ interface IExplodeComponent {
     power:number;
 }
 
-type IHandContainerComponent = IItemStack[];
-
 interface IHealableComponent {
     /**
      * The filter group that defines the conditions for using this item to heal the entity.
@@ -385,8 +371,6 @@ interface IHealthComponent {
      */
     value:number;
 }
-
-type IHotbarContainerComponent = IItemStack[];
 
 interface IInteractComponent {
     /**
@@ -503,8 +487,6 @@ interface IInventoryComponent {
      */
     restrict_to_owner:boolean;
 }
-
-type IInventoryContainerComponent = IItemStack[];
 
 interface ILookatComponent {
     /**
@@ -674,11 +656,6 @@ interface ISpawnEntityComponent {
     spawn_sound:string;
 }
 
-/**
- * Not documented
- */
-type ITagComponent = any;
-
 interface ITeleportComponent {
     /**
      * Modifies the chance that the entity will teleport if the entity is in darkness
@@ -722,6 +699,26 @@ interface ITeleportComponent {
     target_teleport_chance:number;
 }
 
+interface ITickWorldComponent {
+    /**
+     * distance_to_players
+     */
+    distance_to_players:number;
+    /**
+     * Whether or not this ticking area will despawn when a player is out of range
+     */
+    never_despawn:boolean;
+    /**
+     * Integer.
+     * The radius in chunks of the ticking area
+     */
+    radius:number;
+    /**
+     * The ticking area entity that is attached to this entity
+     */
+    ticking_area:IEntityTickingArea;
+}
+
 interface ITickingAreaDescriptionComponent {
     /**
      * Is the area a circle. If false the area is a square.
@@ -745,112 +742,62 @@ interface ITickingAreaDescriptionComponent {
     radius:VectorArray;
 }
 
-interface ITickWorldComponent {
+interface IBlockDestructionStartedEventData {
     /**
-     * distance_to_players
+     * JavaScript Object.
+     * The position of the block that is being destroyed
      */
-    distance_to_players:number;
+    block_position:VectorXYZ;
     /**
-     * Whether or not this ticking area will despawn when a player is out of range
+     * The player that started destoying the block
      */
-    never_despawn:boolean;
-    /**
-     * Integer.
-     * The radius in chunks of the ticking area
-     */
-    radius:number;
-    /**
-     * The ticking area entity that is attached to this entity
-     */
-    ticking_area:IEntityTickingArea;
+    player:IEntity;
 }
 
-interface ITransformationComponent {
+interface IBlockDestructionStoppedEventData {
     /**
-     * List of components to add to the entity after the transformation
+     * JavaScript Object.
+     * The position of the block that was being destroyed
      */
-    add:{
-        /**
-         * Names of component groups to add
-         */
-        component_groups:any[]
-    };
+    block_position:VectorXYZ;
     /**
-     * Sound to play when the transformation starts
+     * How far along the destruction was before it was stopped (0 - 1 range)
      */
-    begin_transform_sound:string;
+    destruction_progress:number;
     /**
-     * Defines the properties of the delay for the transformation
+     * The player that stopped destoying the block
      */
-    delay:{
-        /**
-         * Chance that the entity will look for nearby blocks that can speed up the transformation. Value must be between 0.0 and 1.0
-         * @default 0.0
-         */
-        block_assist_chance:number,
-        /**
-         * Chance that, once a block is found, will help speed up the transformation
-         * @default 0.0
-         */
-        block_chance:number,
-        /**
-         * Integer.
-         * Maximum number of blocks the entity will look for to aid in the transformation. If not defined or set to 0, it will be set to the block radius
-         * @default 0
-         */
-        block_max:number,
-        /**
-         * Integer.
-         * Distance in Blocks that the entity will search for blocks that can help the transformation
-         * @default 0
-         */
-        block_radius:number,
-        /**
-         * List of blocks that can help the transformation of this entity
-         */
-        block_types:any[],
-        /**
-         * If this entity is owned by another entity, it should remain owned after transformation
-         */
-        keep_owner:boolean,
-        /**
-         * Time in seconds before the entity transforms
-         * @default 0.0
-         */
-        value:number
-    };
-    /**
-     * Cause the entity to drop all equipment upon transformation
-     */
-    drop_equipment:boolean;
-    /**
-     * Entity Definition that this entity will transform into
-     */
-    into:string;
-    /**
-     * Sound to play when the entity is done transforming
-     */
-    transformation_sound:string;
+    player:IEntity;
 }
 
-interface IEntityAttackEventData {
+interface IBlockExplodedEventData {
     /**
-     * The entity that attacked
+     * The identifier of the block that was destroyed
+     */
+    block_identifier:string;
+    /**
+     * JavaScript Object.
+     * The position of the block that was destroyed by the explosion
+     */
+    block_position:VectorXYZ;
+    /**
+     * The cause of the block's destruction
+     */
+    cause:MinecraftDamageSource;
+    /**
+     * The entity that exploded
      */
     entity:IEntity;
-    /**
-     * The entity that was targeted in the attack
-     */
-    target:IEntity;
 }
 
-interface IPlayerAttackedEntityEventData {
+interface IBlockInteractedWithEventData {
     /**
-     * The entity that was attacked by the player
+     * JavaScript Object.
+     * The position of the block that is being interacted with
      */
-    attacked_entity:IEntity;
+    block_position:VectorXYZ;
     /**
-     * The player that attacked an entity
+     * The player that interacted with the block
      */
     player:IEntity;
 }
@@ -879,6 +826,17 @@ interface IEntityAcquiredItemEventData {
     secondary_entity:IEntity;
 }
 
+interface IEntityAttackEventData {
+    /**
+     * The entity that attacked
+     */
+    entity:IEntity;
+    /**
+     * The entity that was targeted in the attack
+     */
+    target:IEntity;
+}
+
 interface IEntityCarriedItemChangedEventData {
     /**
      * The item that is now in the entities hands
@@ -905,17 +863,6 @@ interface IEntityCreatedEventData {
     entity:IEntity;
 }
 
-interface IEntityDefinitionEventEventData {
-    /**
-     * The entity that was affected
-     */
-    entity:IEntity;
-    /**
-     * The event that was triggered
-     */
-    event:string;
-}
-
 interface IEntityDeathEventData {
     /**
      * JavaScript Object.
@@ -938,6 +885,17 @@ interface IEntityDeathEventData {
      * The type of the projectile that killed the entity
      */
     projectile_type:string;
+}
+
+interface IEntityDefinitionEventEventData {
+    /**
+     * The entity that was affected
+     */
+    entity:IEntity;
+    /**
+     * The event that was triggered
+     */
+    event:string;
 }
 
 interface IEntityDroppedItemEventData {
@@ -997,13 +955,6 @@ interface IEntityHurtEventData {
      * Present only when damaged by a projectile. This is the identifier of the projectile that hit the entity
      */
     projectile_type:string;
-}
-
-interface IEntityMoveEventData {
-    /**
-     * The entity that moved
-     */
-    entity:IEntity;
 }
 
 interface IEntitySneakEventData {
@@ -1069,66 +1020,6 @@ interface IEntityUseItemEventData {
     use_method:string;
 }
 
-interface IBlockDestructionStartedEventData {
-    /**
-     * JavaScript Object.
-     * The position of the block that is being destroyed
-     */
-    block_position:VectorXYZ;
-    /**
-     * The player that started destoying the block
-     */
-    player:IEntity;
-}
-
-interface IBlockDestructionStoppedEventData {
-    /**
-     * JavaScript Object.
-     * The position of the block that was being destroyed
-     */
-    block_position:VectorXYZ;
-    /**
-     * How far along the destruction was before it was stopped (0 - 1 range)
-     */
-    destruction_progress:number;
-    /**
-     * The player that stopped destoying the block
-     */
-    player:IEntity;
-}
-
-interface IBlockExplodedEventData {
-    /**
-     * The identifier of the block that was destroyed
-     */
-    block_identifier:string;
-    /**
-     * JavaScript Object.
-     * The position of the block that was destroyed by the explosion
-     */
-    block_position:VectorXYZ;
-    /**
-     * The cause of the block's destruction
-     */
-    cause:MinecraftDamageSource;
-    /**
-     * The entity that exploded
-     */
-    entity:IEntity;
-}
-
-interface IBlockInteractedWithEventData {
-    /**
-     * JavaScript Object.
-     * The position of the block that is being interacted with
-     */
-    block_position:VectorXYZ;
-    /**
-     * The player that interacted with the block
-     */
-    player:IEntity;
-}
-
 interface IPistonMovedBlockEventData {
     /**
      * JavaScript Object.
@@ -1144,6 +1035,39 @@ interface IPistonMovedBlockEventData {
      * The position of the piston that moved the block
      */
     piston_position:VectorXYZ;
+}
+
+interface IPlaySoundEventData {
+    /**
+     * The pitch of the sound effect. A value of 1.0 will play the sound effect with regular pitch
+     * @default 1.0
+     */
+    pitch:number;
+    /**
+     * The position in the world we want to play the sound at
+     * @default [0, 0, 0]
+     */
+    position:VectorArray;
+    /**
+     * The identifier of the sound you want to play. Only sounds defined in the applied resource packs can be played
+     */
+    sound:string;
+    /**
+     * The volume of the sound effect. A value of 1.0 will play the sound effect at the volume it was recorded at
+     * @default 1.0
+     */
+    volume:number;
+}
+
+interface IPlayerAttackedEntityEventData {
+    /**
+     * The entity that was attacked by the player
+     */
+    attacked_entity:IEntity;
+    /**
+     * The player that attacked an entity
+     */
+    player:IEntity;
 }
 
 interface IPlayerDestroyedBlockEventData {
@@ -1172,28 +1096,6 @@ interface IPlayerPlacedBlockEventData {
      * The player that placed the block
      */
     player:IEntity;
-}
-
-interface IPlaySoundEventData {
-    /**
-     * The pitch of the sound effect. A value of 1.0 will play the sound effect with regular pitch
-     * @default 1.0
-     */
-    pitch:number;
-    /**
-     * The position in the world we want to play the sound at
-     * @default [0, 0, 0]
-     */
-    position:VectorArray;
-    /**
-     * The identifier of the sound you want to play. Only sounds defined in the applied resource packs can be played
-     */
-    sound:string;
-    /**
-     * The volume of the sound effect. A value of 1.0 will play the sound effect at the volume it was recorded at
-     * @default 1.0
-     */
-    volume:number;
 }
 
 interface IProjectileHitEventData {
@@ -1230,6 +1132,13 @@ interface IWeatherChangedEventData {
     raining:boolean;
 }
 
+interface IDisplayChatEventParameters {
+    /**
+     * The chat message that will be displayed
+     */
+    message:string;
+}
+
 interface IEntityDefinitionEventParameters {
     /**
      * The entity object you want to attach the effect to
@@ -1239,13 +1148,6 @@ interface IEntityDefinitionEventParameters {
      * The identifier of the event to trigger on that entity. Both built-in (minecraft:) and custom events are supported
      */
     event:string;
-}
-
-interface IDisplayChatEventParameters {
-    /**
-     * The chat message that will be displayed
-     */
-    message:string;
 }
 
 interface IExecuteCommandParameters {
@@ -1275,6 +1177,24 @@ interface IPlaySoundParameters {
      * @default 1.0
      */
     volume:number;
+}
+
+interface IScriptLoggerConfigParameters {
+    /**
+     * Set to true to log any scripting errors that occur on the server
+     * @default false
+     */
+    log_errors:boolean;
+    /**
+     * Set to true to log any general scripting information that occurs on the server. This includes any logging done with server.log()
+     * @default false
+     */
+    log_information:boolean;
+    /**
+     * Set to true to log any scripting warnings that occur on the server
+     * @default false
+     */
+    log_warnings:boolean;
 }
 
 interface ISpawnParticleAttachedEntityParameters {
@@ -1310,24 +1230,6 @@ interface ISpawnParticleInWorldParameters {
     position:VectorArray;
 }
 
-interface IScriptLoggerConfigParameters {
-    /**
-     * Set to true to log any scripting errors that occur on the server
-     * @default false
-     */
-    log_errors:boolean;
-    /**
-     * Set to true to log any general scripting information that occurs on the server. This includes any logging done with server.log()
-     * @default false
-     */
-    log_information:boolean;
-    /**
-     * Set to true to log any scripting warnings that occur on the server
-     * @default false
-     */
-    log_warnings:boolean;
-}
-
 interface MinecraftComponentNameMap {
     "minecraft:weather":IComponent<IWeatherComponent>;
     "minecraft:attack":IComponent<IAttackComponent>;
@@ -1347,104 +1249,93 @@ interface MinecraftComponentNameMap {
     "minecraft:shooter":IComponent<IShooterComponent>;
     "minecraft:spawn_entity":IComponent<ISpawnEntityComponent>;
     "minecraft:teleport":IComponent<ITeleportComponent>;
-    "minecraft:ticking_area_description":IComponent<ITickingAreaDescriptionComponent>;
     "minecraft:tick_world":IComponent<ITickWorldComponent>;
-    "minecraft:transformation":IComponent<ITransformationComponent>;
+    "minecraft:ticking_area_description":IComponent<ITickingAreaDescriptionComponent>;
 }
 
 interface MinecraftServerEventNameMap {
-    "minecraft:entity_definition_event":IEventData<IEntityDefinitionEventParameters>;
     "minecraft:display_chat_event":IEventData<IDisplayChatEventParameters>;
+    "minecraft:entity_definition_event":IEventData<IEntityDefinitionEventParameters>;
     "minecraft:execute_command":IEventData<IExecuteCommandParameters>;
     "minecraft:play_sound":IEventData<IPlaySoundParameters>;
+    "minecraft:script_logger_config":IEventData<IScriptLoggerConfigParameters>;
     "minecraft:spawn_particle_attached_entity":IEventData<ISpawnParticleAttachedEntityParameters>;
     "minecraft:spawn_particle_in_world":IEventData<ISpawnParticleInWorldParameters>;
-    "minecraft:script_logger_config":IEventData<IScriptLoggerConfigParameters>;
 }
 
 interface MinecraftClientEventNameMap {
-    "minecraft:entity_attack":IEventData<IEntityAttackEventData>;
-    "minecraft:player_attacked_entity":IEventData<IPlayerAttackedEntityEventData>;
+    "minecraft:block_destruction_started":IEventData<IBlockDestructionStartedEventData>;
+    "minecraft:block_destruction_stopped":IEventData<IBlockDestructionStoppedEventData>;
+    "minecraft:block_exploded":IEventData<IBlockExplodedEventData>;
+    "minecraft:block_interacted_with":IEventData<IBlockInteractedWithEventData>;
     "minecraft:entity_acquired_item":IEventData<IEntityAcquiredItemEventData>;
+    "minecraft:entity_attack":IEventData<IEntityAttackEventData>;
     "minecraft:entity_carried_item_changed":IEventData<IEntityCarriedItemChangedEventData>;
     "minecraft:entity_created":IEventData<IEntityCreatedEventData>;
-    "minecraft:entity_definition_event":IEventData<IEntityDefinitionEventEventData>;
     "minecraft:entity_death":IEventData<IEntityDeathEventData>;
+    "minecraft:entity_definition_event":IEventData<IEntityDefinitionEventEventData>;
     "minecraft:entity_dropped_item":IEventData<IEntityDroppedItemEventData>;
     "minecraft:entity_equipped_armor":IEventData<IEntityEquippedArmorEventData>;
     "minecraft:entity_hurt":IEventData<IEntityHurtEventData>;
-    "minecraft:entity_move":IEventData<IEntityMoveEventData>;
     "minecraft:entity_sneak":IEventData<IEntitySneakEventData>;
     "minecraft:entity_start_riding":IEventData<IEntityStartRidingEventData>;
     "minecraft:entity_stop_riding":IEventData<IEntityStopRidingEventData>;
     "minecraft:entity_tick":IEventData<IEntityTickEventData>;
     "minecraft:entity_use_item":IEventData<IEntityUseItemEventData>;
-    "minecraft:block_destruction_started":IEventData<IBlockDestructionStartedEventData>;
-    "minecraft:block_destruction_stopped":IEventData<IBlockDestructionStoppedEventData>;
-    "minecraft:block_exploded":IEventData<IBlockExplodedEventData>;
-    "minecraft:block_interacted_with":IEventData<IBlockInteractedWithEventData>;
     "minecraft:piston_moved_block":IEventData<IPistonMovedBlockEventData>;
+    "minecraft:play_sound":IEventData<IPlaySoundEventData>;
+    "minecraft:player_attacked_entity":IEventData<IPlayerAttackedEntityEventData>;
     "minecraft:player_destroyed_block":IEventData<IPlayerDestroyedBlockEventData>;
     "minecraft:player_placed_block":IEventData<IPlayerPlacedBlockEventData>;
-    "minecraft:play_sound":IEventData<IPlaySoundEventData>;
     "minecraft:projectile_hit":IEventData<IProjectileHitEventData>;
     "minecraft:weather_changed":IEventData<IWeatherChangedEventData>;
 }
 
+type IHotbarContainerComponent = IItemStack[];
+
+type IArmorContainerComponent = IItemStack[];
+
+type IHandContainerComponent = IItemStack[];
+
+type IInventoryContainerComponent = IItemStack[];
+
 interface IVanillaServerSystem {
     /**
-     * NOTE: Entities are created first on the server, with the client notified of new entities afterwards. Be aware that if you send the result object to the client right away, the created entity might not exist on the client yet.
-     * @return An object representing the newly created entity
+     * Allows you to get a block from the world when provided a JavaScript object containing a position. The block must be within a ticking area.
      */
-    createEntity():IEntity;
+    getBlock():IBlock|null;
     /**
-     * NOTE: Entities are created first on the server, with the client notified of new entities afterwards. Be aware that if you send the result object to the client right away, the created entity might not exist on the client yet.
-     * @param type Specifies the type of the entity that is being created by the template. Valid inputs are `entity` and `item_entity`
-     * @param templateIdentifier This can be any of the entity identifiers from the applied Behavior Packs. For example specifying minecraft:cow here will make the provided entity a cow as defined in JSON
-     * @return An object representing the newly created entity
+     * Allows you to get a block from the world when provided an x, y, and z position. The block must be within a ticking area.
      */
-    createEntity(type:string, templateIdentifier:string):IEntity;
+    getBlock():IBlock|null;
     /**
-     * @param entityObject The object that was retrieved from a call to createEntity() or retrieved from an entity event
-     * @return The entity was successfully destroyed
+     * Allows you to get an array of blocks from the world when provided a minimum and maximum position. The blocks must be within a ticking area. This call can be slow if given a lot of blocks, and should be used infrequently.
      */
-    destroyEntity(entityObject:IEntity):boolean;
+    getBlocks():IBlock[][][]|null;
     /**
-     * @param entityObject The object that was retrieved from a call to createEntity() or retrieved from an entity event
-     * @return The entity is in the Script Engine's database of entities
+     * Allows you to get an array of blocks from the world when provided a minimum and maximum x, y, and z position. The blocks must be within a ticking area. This call can be slow if given a lot of blocks, and should be used infrequently.
      */
-    isValidEntity(entityObject:IEntity):boolean;
+    getBlocks():IBlock[][][]|null;
     /**
-     * @param componentIdentifier The identifier of the custom component. It is required to use a namespace so you can uniquely refer to it later without overlapping a name with a built-in component: for example 'myPack:myCustomComponent'
-     * @param componentData JavaScript Object.
-     *    A JavaScript Object that defines the name of the fields and the data each field holds inside the component.
-     * @return The component was successfully registered
+     * Creates a custom component that only exists in script. It can be then added, removed, and updated from entities. These custom components only exist while the Script Engine is running.
      */
-    registerComponent(componentIdentifier:string, componentData:any):boolean;
+    registerComponent():void;
     /**
-     * @param eventIdentifier This is the identifier of the custom event we are registering. The namespace is required and can't be set to minecraft.
-     * @param eventData JavaScript Object.
-     *    The JavaScript object with the correct fields and default values for the event
-     * @return Successfully registered the event data
+     * Creates an empty entity with no components and does not place it in the world. The empty entity will be of type custom and have a blank identifier. This is NOT a valid entity that exists in the world, just an empty one that only scripts know about.NOTE: Entities are created first on the server, with the client notified of new entities afterwards. Be aware that if you send the result object to the client right away, the created entity might not exist on the client yet.
      */
-    registerEventData(eventIdentifier:string, eventData:any):boolean;
+    createEntity():void;
     /**
-     * Allows you to register a query. A query will contain all entities that meet the filter requirement.No filters are added by default when you register a query so it will capture all entities.
-     * @return An object containing the ID of the query
+     * Creates an entity and applies the specified template as defined in JSON. This allows you to quickly create an entity from the applied Behavior Packs as the base for an entity created in scripting. The entity will be spawned into the world with all the components, component groups, and event triggers that are defined in the JSON file of the identifier specified. Only works on scripts registered on the server.NOTE: Entities are created first on the server, with the client notified of new entities afterwards. Be aware that if you send the result object to the client right away, the created entity might not exist on the client yet.
      */
-    registerQuery():IQuery;
+    createEntity():void;
     /**
-     * Allows you to register a query that will only show entities that have the given component and define which fields of that component will be used as a filter when getting the entities from the query. You can either provide just the component identifier, or the component identifier and the name of 3 properties on that component to be tested (If you do specify property names, you must specify 3).
-     * @param component This is the identifier of the component that will be used to filter entities when
-     * @param componentField1 This is the name of the first field of the component that we want to filter entities by. By default this is set to x.
-     *    @default "x"
-     * @param componentField2 This is the name of the second field of the component that we want to filter entities by. By default this is set to y.
-     *    @default "y"
-     * @param componentField3 This is the name of the third field of the component that we want to filter entities by. By default this is set to z.
-     *    @default "z"
-     * @return An object containing the ID of the query
+     * Destroys an entity identified by the EntityObject. If the entity exists in the world this will remove it from the world and destroy it. This also makes the EntityObject no longer valid - you should only destroy an entity after you are done with it and no longer need to reference it again. This does NOT kill the entity. There won't be an event for its death: it will be removed.
      */
-    registerQuery(component:string, componentField1?:string, componentField2?:string, componentField3?:string):IQuery;
+    destroyEntity():void;
+    /**
+     * Checks if the given EntityObject corresponds to a valid entity.
+     */
+    isValidEntity():void;
     /**
      * Allows you to add filters to your query. The query will only contain entities that have all the components specified.By default no filters are added. This will allow queries to capture all entities.
      * @param query The object containing the ID of the query that you want to apply the filter to
@@ -1453,67 +1344,24 @@ interface IVanillaServerSystem {
     addFilterToQuery(query:IQuery, componentIdentifier:string):void;
     /**
      * Allows you to fetch the entities captured by a query.
-     * @param query This is the query you registered earlier using registerQuery()
-     * @return An array of EntityObjects representing the entities found within the query
      */
-    getEntitiesFromQuery(query:IQuery):IEntity[];
+    getEntitiesFromQuery():IEntity[];
     /**
      * Allows you to fetch the entities captured by a query that was created with a component filter built-in. The only entities that will be returned are those entities that have the component that was defined when the query was registered and that have a value in the three fields on that component that were defined in the query within the values specified in the call to getEntitiesFromQuery.
-     * @param query This is the query you created earlier using registerQuery(...)
-     * @param componentField1_Min The minimum value that the first component field needs to be on an entity for that entity to be included in the query
-     * @param componentField2_Min The minimum value that the second component field needs to be on an entity for that entity to be included in the query
-     * @param componentField3_Min The minimum value that the third component field needs to be on an entity for that entity to be included in the query
-     * @param componentField1_Max The maximum value that the first component field needs to be on an entity for that entity to be included in the query
-     * @param componentField2_Max The maximum value that the second component field needs to be on an entity for that entity to be included in the query
-     * @param componentField3_Max The maximum value that the third component field needs to be on an entity for that entity to be included in the query
-     * @return An array of EntityObjects representing the entities found within the query
      */
-    getEntitiesFromQuery(query:IQuery, componentField1_Min:number, componentField2_Min:number, componentField3_Min:number, componentField1_Max:number, componentField2_Max:number, componentField3_Max:number):IEntity[];
+    getEntitiesFromQuery():IEntity[];
     /**
-     * Allows you to get a block from the world when provided an x, y, and z position. The block must be within a ticking area.
-     * @param tickingArea The ticking area the block is in
-     * @param x Integer.
-     *    The x position of the block you want
-     * @param y Integer.
-     *    The y position of the block you want
-     * @param z Integer.
-     *    The z position of the block you want
-     * @return object
+     * Allows you to register a query. A query will contain all entities that meet the filter requirement.No filters are added by default when you register a query so it will capture all entities.
      */
-    getBlock(tickingArea:ITickingArea, x:number, y:number, z:number):IBlock|null;
+    registerQuery():void;
     /**
-     * Allows you to get a block from the world when provided a JavaScript object containing a position. The block must be within a ticking area.
-     * @param tickingArea The ticking area the block is in
-     * @param positionObject A JavaScript object with the x, y, and z position of the block you want
-     * @return An object containing the block
+     * Allows you to register a query that will only show entities that have the given component and define which fields of that component will be used as a filter when getting the entities from the query. You can either provide just the component identifier, or the component identifier and the name of 3 properties on that component to be tested (If you do specify property names, you must specify 3).
      */
-    getBlock(tickingArea:ITickingArea, positionObject:VectorXYZ):IBlock|null;
+    registerQuery():void;
     /**
-     * Allows you to get an array of blocks from the world when provided a minimum and maximum x, y, and z position. The blocks must be within a ticking area. This call can be slow if given a lot of blocks, and should be used infrequently.
-     * @param tickingArea The ticking area the blocks are in
-     * @param xMin Integer.
-     *    The minimum x position of the blocks you want
-     * @param yMin Integer.
-     *    The minimum y position of the blocks you want
-     * @param zMin Integer.
-     *    The minimum z position of the blocks you want
-     * @param xMax Integer.
-     *    The maximum x position of the blocks you want
-     * @param yMax Integer.
-     *    The maximum y position of the blocks you want
-     * @param zMax Integer.
-     *    The maximum z position of the blocks you want
-     * @return array
+     * Registers the Event to the script engine. This allows you to create Event Data by calling createEventData and have it initialized with the correct default data and fields. Only custom events need to be registered.
      */
-    getBlocks(tickingArea:ITickingArea, xMin:number, yMin:number, zMin:number, xMax:number, yMax:number, zMax:number):IBlock[][][]|null;
-    /**
-     * Allows you to get an array of blocks from the world when provided a minimum and maximum position. The blocks must be within a ticking area. This call can be slow if given a lot of blocks, and should be used infrequently.
-     * @param tickingArea The ticking area the blocks are in
-     * @param minimumPositionObject A JavaScript object with the minimum x, y, and z position of the blocks you want
-     * @param maximumPositionObject A JavaScript object with the maximum x, y, and z position of the blocks you want
-     * @return A 3D array of block objects. Indexs are the blocks positions relative to the min position given
-     */
-    getBlocks(tickingArea:ITickingArea, minimumPositionObject:VectorXYZ, maximumPositionObject:VectorXYZ):IBlock[][][]|null;
+    registerEventData():void;
 }
 
 }

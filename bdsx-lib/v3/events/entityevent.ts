@@ -5,7 +5,7 @@ import { VoidPointer } from "../../core";
 import { hook } from "../../hook";
 import { makefunc } from "../../makefunc";
 import { Actor, ActorDamageSource, EventResult, HealthAttributeDelegate, Level, Mob, ProjectileComponent, ScriptServerActorEventListener, SplashPotionEffectSubcomponent } from "../../minecraft";
-import { removeActorReference } from "../../minecraft_impl/actor";
+import { removeActorReference } from "../../minecraft/ext/actor";
 import { NativeType, void_t } from "../../nativetype";
 import { _tickCallback } from "../../util";
 import { Entity } from "../entity";

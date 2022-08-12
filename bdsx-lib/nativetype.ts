@@ -208,7 +208,6 @@ export class NativeType<T, InputType=T> extends makefunc.ParamableT<T, InputType
         this[NativeType.dtor] = dtor;
         this[NativeType.ctor_copy] = ctor_copy;
         this[NativeType.ctor_move] = ctor_move;
-        this.getIndex();
     }
 
     supportsBitMask():boolean {
@@ -287,6 +286,10 @@ export class NativeType<T, InputType=T> extends makefunc.ParamableT<T, InputType
         builder.ctor_move.setPtrOffset(offset);
         builder.ctor_move.code += `${name}[NativeType.ctor_move](ptr, optr);\n`;
     }
+
+    toString():string {
+        return `[NativeType ${this.name}]`;
+    }
 }
 NativeType.prototype[NativeTypeFn.descriptor] = NativeType.defaultDescriptor;
 
@@ -346,7 +349,6 @@ export const nullptr_t = new NativeType<void>(
     },
     undefined,
     emptyFunc);
-Object.freeze(nullptr_t);
 export type nullptr_t = null;
 export const void_t = new NativeType<void>(
     'void',
@@ -546,7 +548,6 @@ function impossible():never {
     throw Error(`Impossible to set`);
 }
 
-// continued from https://github.com/bdsx/bdsx/pull/142/commits/9820de4acf3c818ae5bc2f5eae0d19fd750f4482
 export const GslStringSpan = new NativeType<string>(
     'gsl::basic_string_span<char const,-1>',
     0x10, 8,
@@ -571,7 +572,6 @@ export const GslStringSpan = new NativeType<string>(
         stackptr.setPointer(buf, offset);
     }
 );
-Object.freeze(GslStringSpan);
 export type GslStringSpan = string;
 
 export const bin64_t = new NativeType<string>(

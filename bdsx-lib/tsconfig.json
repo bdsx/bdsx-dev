@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "typeRoots": [ "./typings" ],
+    "typeRoots": [ "node_modules/@types", "./typings" ],
     "types": [ "node", "minecraft" ],
     "outDir": "../bdsx/bdsx",
     "target": "es2017",

@@ -3,7 +3,7 @@ import path = require('path');
 import { fsutil } from '../../fsutil';
 import { StringLineWriter } from '../writer/linewriter';
 
-export async function enumgen(srcDir:string):Promise<{js:string, dts:string}> {
+export async function enumgen(jsPath:string, declarePath:string, srcDir:string):Promise<{js:string, dts:string}> {
     let comment:string|null = null;
     function writeComment():void {
         if (comment === null) return;
@@ -30,12 +30,14 @@ export async function enumgen(srcDir:string):Promise<{js:string, dts:string}> {
     const dts = new StringLineWriter;
     const js = new StringLineWriter;
 
-    dts.generateWarningComment('the enum generator', 'bdsx-dev/enums_ini/*.ini');
-    js.generateWarningComment('the enum generator', 'bdsx-dev/enums_ini/*.ini');
-    js.writeln('const minecraft=require("../minecraft");');
+    const nonDotSrcDir = srcDir.startsWith('./') ? srcDir.substr(2) : srcDir;
+
+    dts.generateWarningComment('the enum generator', `bdsx-lib/${nonDotSrcDir}/*.ini`);
+    js.generateWarningComment('the enum generator', `bdsx-lib/${nonDotSrcDir}/*.ini`);
+    js.writeln(`const minecraft=require("${jsPath}");`);
     js.writeln(`let v;`);
 
-    dts.writeln('declare module "../minecraft" {');
+    dts.writeln(`declare module "${declarePath}" {`);
     dts.tab();
     const readExp = /^[ \t]*([^\s]*)[ \t]*=[ \t]*([^\s]*)[ \t]*(?:[#;][^\r\n]*)?$/gm;
     const firstIsNumber = /^[0-9]/;
@@ -45,17 +47,22 @@ export async function enumgen(srcDir:string):Promise<{js:string, dts:string}> {
         if (!filename.endsWith('.ini')) continue;
         const nsList = filename.split('.');
         nsList.pop();
-        const ns = nsList.join('.');
 
         const content = await fsutil.readFile(path.join(srcDir, filename));
         readExp.lastIndex = 0;
         const lines = content.split(/\r?\n/g);
 
-        js.writeln(`(minecraft.${ns}=v={}).__proto__=null;`);
+        const nsname = nsList[0];
+        js.writeln(`v=minecraft.${nsname}||(minecraft.${nsname}={});`);
+        for (let i=1;i<nsList.length;i++) {
+            const nsname = nsList[i];
+            js.writeln(`v=v.${nsname}||(v.${nsname}={});`);
+        }
+        js.writeln(`v.__proto__=null;`);
 
         if (nsCheck !== filename) {
             closeNamespace();
-            nsCheck = ns;
+            nsCheck = nsList.join('.');
             nsLevel = nsList.length-1;
 
             for (let i=0;i<nsLevel;i++) {

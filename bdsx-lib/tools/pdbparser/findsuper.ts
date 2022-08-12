@@ -72,6 +72,9 @@ function getSuperFromConstructor(superList:SuperExpecteds, item:PdbId<PdbId.Func
     }
 }
 
+/**
+ * @deprecated inaccurate
+ */
 export function resolveSuper():void {
     console.log(`[symbolwriter.ts] Resolve extended classes...`);
     for (const item of PdbId.global.loopAll()) {

@@ -2,7 +2,8 @@ import { Color } from "colors";
 import { CANCEL } from "../../common";
 import type { NativePointer } from "../../core";
 import { Event } from "../../eventtarget";
-import { MinecraftPacketIds, NetworkIdentifier, Packet } from "../../minecraft";
+import { MinecraftPacketIds, NetworkIdentifier } from "../../minecraft";
+import { packetMap } from "../../packetmap";
 import { remapStack } from "../../source-map-support";
 import type { BlockDestroyEvent, BlockPlaceEvent, CampfireTryDouseFire, CampfireTryLightFire, FarmlandDecayEvent, PistonMoveEvent } from "./blockevent";
 import type { CommandEvent } from "./commandevent";
@@ -28,9 +29,11 @@ for (let i=0;i<PACKET_EVENT_COUNT;i++) {
     packetAllTargets[i] = null;
 }
 
+type packetMap = {[key in MinecraftPacketIds]:key extends keyof typeof packetMap ? InstanceType<(typeof packetMap)[key]> : never};
+
 export namespace events {
     export type RawListener = (ptr:NativePointer, size:number, networkIdentifier:NetworkIdentifier, packetId: number)=>CANCEL|void|Promise<void>;
-    export type PacketListener<ID extends MinecraftPacketIds> = (packet: Packet.idMap[ID], networkIdentifier: NetworkIdentifier, packetId: ID) => CANCEL|void|Promise<void>;
+    export type PacketListener<ID extends MinecraftPacketIds> = (packet: packetMap[ID], networkIdentifier: NetworkIdentifier, packetId: ID) => CANCEL|void|Promise<void>;
     export type BeforeListener<ID extends MinecraftPacketIds> = PacketListener<ID>;
     export type AfterListener<ID extends MinecraftPacketIds> = PacketListener<ID>;
     export type SendListener<ID extends MinecraftPacketIds> = PacketListener<ID>;
@@ -217,7 +220,7 @@ export namespace events {
     /**
      * @alias packetBefore(MinecraftPacketIds.Text)
      */
-    export const chat = packetBefore(MinecraftPacketIds.Text);
+    export const chat:Event<PacketListener<MinecraftPacketIds.Text>> = packetBefore(MinecraftPacketIds.Text);
 
     ////////////////////////////////////////////////////////
     // Misc

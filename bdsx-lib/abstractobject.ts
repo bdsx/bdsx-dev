@@ -23,7 +23,7 @@ export namespace createAbstractObject {
     export function setAbstractProperty<T>(o:T, p:keyof T):void {
         Object.defineProperty(o, p, {
             get():never {
-                throw Error(`'${p} is not ready'`);
+                throw Error(`'${p as string} is not ready'`);
             },
             set(value:unknown):void {
                 Object.defineProperty(o, p, {value});
@@ -36,7 +36,7 @@ export namespace createAbstractObject {
         for (const prop of properties) {
             descmap[prop as string] = {
                 get():never {
-                    throw Error(`'${prop} is not ready'`);
+                    throw Error(`'${prop as string} is not ready'`);
                 },
                 set(value:unknown):void {
                     Object.defineProperty(o, prop, {value});

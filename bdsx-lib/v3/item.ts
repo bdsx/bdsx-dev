@@ -34,7 +34,7 @@ export class Item {
 
     get isBlock():boolean {
         const itemStack = this.getRawItemStack();
-        return itemStack.vftable === Block.addressof_vftable;
+        return itemStack.vftable === Block.vftable;
     }
 
     get id():ItemId {

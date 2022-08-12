@@ -1,0 +1,190 @@
+const {MinecraftPacketIds,LoginPacket,PlayStatusPacket,ServerToClientHandshakePacket,ClientToServerHandshakePacket,DisconnectPacket,ResourcePacksInfoPacket,ResourcePackStackPacket,ResourcePackClientResponsePacket,TextPacket,SetTimePacket,StartGamePacket,AddPlayerPacket,AddActorPacket,RemoveActorPacket,AddItemActorPacket,
+        TakeItemActorPacket,MoveActorAbsolutePacket,MovePlayerPacket,RiderJumpPacket,UpdateBlockPacket,AddPaintingPacket,TickSyncPacket,LevelSoundEventPacketV1,LevelEventPacket,BlockEventPacket,ActorEventPacket,MobEffectPacket,UpdateAttributesPacket,InventoryTransactionPacket,MobEquipmentPacket,MobArmorEquipmentPacket,InteractPacket,
+        BlockPickRequestPacket,ActorPickRequestPacket,PlayerActionPacket,HurtArmorPacket,SetActorDataPacket,SetActorMotionPacket,SetActorLinkPacket,SetHealthPacket,SetSpawnPositionPacket,AnimatePacket,RespawnPacket,ContainerOpenPacket,ContainerClosePacket,PlayerHotbarPacket,InventoryContentPacket,InventorySlotPacket,ContainerSetDataPacket,
+        CraftingDataPacket,CraftingEventPacket,GuiDataPickItemPacket,AdventureSettingsPacket,BlockActorDataPacket,PlayerInputPacket,LevelChunkPacket,SetCommandsEnabledPacket,SetDifficultyPacket,ChangeDimensionPacket,SetPlayerGameTypePacket,PlayerListPacket,SimpleEventPacket,EventPacket,SpawnExperienceOrbPacket,ClientboundMapItemDataPacket,
+        MapInfoRequestPacket,RequestChunkRadiusPacket,ChunkRadiusUpdatedPacket,ItemFrameDropItemPacket,GameRulesChangedPacket,CameraPacket,BossEventPacket,ShowCreditsPacket,AvailableCommandsPacket,CommandRequestPacket,CommandBlockUpdatePacket,CommandOutputPacket,UpdateTradePacket,UpdateEquipPacket,ResourcePackDataInfoPacket,
+        ResourcePackChunkDataPacket,ResourcePackChunkRequestPacket,TransferPacket,PlaySoundPacket,StopSoundPacket,SetTitlePacket,AddBehaviorTreePacket,StructureBlockUpdatePacket,ShowStoreOfferPacket,PurchaseReceiptPacket,PlayerSkinPacket,SubClientLoginPacket,AutomationClientConnectPacket,SetLastHurtByPacket,BookEditPacket,
+        NpcRequestPacket,PhotoTransferPacket,ModalFormRequestPacket,ModalFormResponsePacket,ServerSettingsRequestPacket,ServerSettingsResponsePacket,ShowProfilePacket,SetDefaultGameTypePacket,RemoveObjectivePacket,SetDisplayObjectivePacket,SetScorePacket,LabTablePacket,UpdateBlockSyncedPacket,MoveActorDeltaPacket,SetScoreboardIdentityPacket,
+        SetLocalPlayerAsInitializedPacket,UpdateSoftEnumPacket,NetworkStackLatencyPacket,ScriptCustomEventPacket,SpawnParticleEffectPacket,AvailableActorIdentifiersPacket,LevelSoundEventPacketV2,NetworkChunkPublisherUpdatePacket,BiomeDefinitionListPacket,LevelSoundEventPacket,LevelEventGenericPacket,LecternUpdatePacket,
+        AddEntityPacket,RemoveEntityPacket,ClientCacheStatusPacket,OnScreenTextureAnimationPacket,MapCreateLockedCopyPacket,StructureTemplateDataRequestPacket,StructureTemplateDataResponsePacket,ClientCacheBlobStatusPacket,ClientCacheMissResponsePacket,EducationSettingsPacket,EmotePacket,MultiplayerSettingsPacket,SettingsCommandPacket,
+        AnvilDamagePacket,CompletedUsingItemPacket,NetworkSettingsPacket,PlayerAuthInputPacket,CreativeContentPacket,PlayerEnchantOptionsPacket,ItemStackRequestPacket,ItemStackResponsePacket,PlayerArmorDamagePacket,CodeBuilderPacket,UpdatePlayerGameTypePacket,EmoteListPacket,PositionTrackingDBServerBroadcastPacket,PositionTrackingDBClientRequestPacket,
+        DebugInfoPacket,PacketViolationWarningPacket,MotionPredictionHintsPacket,AnimateEntityPacket,CameraShakePacket,PlayerFogPacket,CorrectPlayerMovePredictionPacket,ItemComponentPacket,FilterTextPacket,ClientboundDebugRendererPacket,SyncActorPropertyPacket,AddVolumeEntityPacket,RemoveVolumeEntityPacket,SimulationTypePacket,
+        NpcDialoguePacket}=require("./minecraft");
+const packetMap={1:LoginPacket,2:PlayStatusPacket,3:ServerToClientHandshakePacket,4:ClientToServerHandshakePacket,5:DisconnectPacket,6:ResourcePacksInfoPacket,7:ResourcePackStackPacket,8:ResourcePackClientResponsePacket,9:TextPacket,10:SetTimePacket,11:StartGamePacket,12:AddPlayerPacket,13:AddActorPacket,14:RemoveActorPacket,
+        15:AddItemActorPacket,17:TakeItemActorPacket,18:MoveActorAbsolutePacket,19:MovePlayerPacket,20:RiderJumpPacket,21:UpdateBlockPacket,22:AddPaintingPacket,23:TickSyncPacket,24:LevelSoundEventPacketV1,25:LevelEventPacket,26:BlockEventPacket,27:ActorEventPacket,28:MobEffectPacket,29:UpdateAttributesPacket,30:InventoryTransactionPacket,
+        31:MobEquipmentPacket,32:MobArmorEquipmentPacket,33:InteractPacket,34:BlockPickRequestPacket,35:ActorPickRequestPacket,36:PlayerActionPacket,38:HurtArmorPacket,39:SetActorDataPacket,40:SetActorMotionPacket,41:SetActorLinkPacket,42:SetHealthPacket,43:SetSpawnPositionPacket,44:AnimatePacket,45:RespawnPacket,46:ContainerOpenPacket,
+        47:ContainerClosePacket,48:PlayerHotbarPacket,49:InventoryContentPacket,50:InventorySlotPacket,51:ContainerSetDataPacket,52:CraftingDataPacket,53:CraftingEventPacket,54:GuiDataPickItemPacket,55:AdventureSettingsPacket,56:BlockActorDataPacket,57:PlayerInputPacket,58:LevelChunkPacket,59:SetCommandsEnabledPacket,60:SetDifficultyPacket,
+        61:ChangeDimensionPacket,62:SetPlayerGameTypePacket,63:PlayerListPacket,64:SimpleEventPacket,65:EventPacket,66:SpawnExperienceOrbPacket,67:ClientboundMapItemDataPacket,68:MapInfoRequestPacket,69:RequestChunkRadiusPacket,70:ChunkRadiusUpdatedPacket,71:ItemFrameDropItemPacket,72:GameRulesChangedPacket,73:CameraPacket,
+        74:BossEventPacket,75:ShowCreditsPacket,76:AvailableCommandsPacket,77:CommandRequestPacket,78:CommandBlockUpdatePacket,79:CommandOutputPacket,80:UpdateTradePacket,81:UpdateEquipPacket,82:ResourcePackDataInfoPacket,83:ResourcePackChunkDataPacket,84:ResourcePackChunkRequestPacket,85:TransferPacket,86:PlaySoundPacket,
+        87:StopSoundPacket,88:SetTitlePacket,89:AddBehaviorTreePacket,90:StructureBlockUpdatePacket,91:ShowStoreOfferPacket,92:PurchaseReceiptPacket,93:PlayerSkinPacket,94:SubClientLoginPacket,95:AutomationClientConnectPacket,96:SetLastHurtByPacket,97:BookEditPacket,98:NpcRequestPacket,99:PhotoTransferPacket,100:ModalFormRequestPacket,
+        101:ModalFormResponsePacket,102:ServerSettingsRequestPacket,103:ServerSettingsResponsePacket,104:ShowProfilePacket,105:SetDefaultGameTypePacket,106:RemoveObjectivePacket,107:SetDisplayObjectivePacket,108:SetScorePacket,109:LabTablePacket,110:UpdateBlockSyncedPacket,111:MoveActorDeltaPacket,112:SetScoreboardIdentityPacket,
+        113:SetLocalPlayerAsInitializedPacket,114:UpdateSoftEnumPacket,115:NetworkStackLatencyPacket,117:ScriptCustomEventPacket,118:SpawnParticleEffectPacket,119:AvailableActorIdentifiersPacket,120:LevelSoundEventPacketV2,121:NetworkChunkPublisherUpdatePacket,122:BiomeDefinitionListPacket,123:LevelSoundEventPacket,124:LevelEventGenericPacket,
+        125:LecternUpdatePacket,127:AddEntityPacket,128:RemoveEntityPacket,129:ClientCacheStatusPacket,130:OnScreenTextureAnimationPacket,131:MapCreateLockedCopyPacket,132:StructureTemplateDataRequestPacket,133:StructureTemplateDataResponsePacket,135:ClientCacheBlobStatusPacket,136:ClientCacheMissResponsePacket,137:EducationSettingsPacket,
+        138:EmotePacket,139:MultiplayerSettingsPacket,140:SettingsCommandPacket,141:AnvilDamagePacket,142:CompletedUsingItemPacket,143:NetworkSettingsPacket,144:PlayerAuthInputPacket,145:CreativeContentPacket,146:PlayerEnchantOptionsPacket,147:ItemStackRequestPacket,148:ItemStackResponsePacket,149:PlayerArmorDamagePacket,
+        150:CodeBuilderPacket,151:UpdatePlayerGameTypePacket,152:EmoteListPacket,153:PositionTrackingDBServerBroadcastPacket,154:PositionTrackingDBClientRequestPacket,155:DebugInfoPacket,156:PacketViolationWarningPacket,157:MotionPredictionHintsPacket,158:AnimateEntityPacket,159:CameraShakePacket,160:PlayerFogPacket,161:CorrectPlayerMovePredictionPacket,
+        162:ItemComponentPacket,163:FilterTextPacket,164:ClientboundDebugRendererPacket,165:SyncActorPropertyPacket,166:AddVolumeEntityPacket,167:RemoveVolumeEntityPacket,168:SimulationTypePacket,169:NpcDialoguePacket};
+exports.packetMap=packetMap;
+LoginPacket.ID=1;
+PlayStatusPacket.ID=2;
+ServerToClientHandshakePacket.ID=3;
+ClientToServerHandshakePacket.ID=4;
+DisconnectPacket.ID=5;
+ResourcePacksInfoPacket.ID=6;
+ResourcePackStackPacket.ID=7;
+ResourcePackClientResponsePacket.ID=8;
+TextPacket.ID=9;
+SetTimePacket.ID=10;
+StartGamePacket.ID=11;
+AddPlayerPacket.ID=12;
+AddActorPacket.ID=13;
+RemoveActorPacket.ID=14;
+AddItemActorPacket.ID=15;
+TakeItemActorPacket.ID=17;
+MoveActorAbsolutePacket.ID=18;
+MovePlayerPacket.ID=19;
+RiderJumpPacket.ID=20;
+UpdateBlockPacket.ID=21;
+AddPaintingPacket.ID=22;
+TickSyncPacket.ID=23;
+LevelSoundEventPacketV1.ID=24;
+LevelEventPacket.ID=25;
+BlockEventPacket.ID=26;
+ActorEventPacket.ID=27;
+MobEffectPacket.ID=28;
+UpdateAttributesPacket.ID=29;
+InventoryTransactionPacket.ID=30;
+MobEquipmentPacket.ID=31;
+MobArmorEquipmentPacket.ID=32;
+InteractPacket.ID=33;
+BlockPickRequestPacket.ID=34;
+ActorPickRequestPacket.ID=35;
+PlayerActionPacket.ID=36;
+HurtArmorPacket.ID=38;
+SetActorDataPacket.ID=39;
+SetActorMotionPacket.ID=40;
+SetActorLinkPacket.ID=41;
+SetHealthPacket.ID=42;
+SetSpawnPositionPacket.ID=43;
+AnimatePacket.ID=44;
+RespawnPacket.ID=45;
+ContainerOpenPacket.ID=46;
+ContainerClosePacket.ID=47;
+PlayerHotbarPacket.ID=48;
+InventoryContentPacket.ID=49;
+InventorySlotPacket.ID=50;
+ContainerSetDataPacket.ID=51;
+CraftingDataPacket.ID=52;
+CraftingEventPacket.ID=53;
+GuiDataPickItemPacket.ID=54;
+AdventureSettingsPacket.ID=55;
+BlockActorDataPacket.ID=56;
+PlayerInputPacket.ID=57;
+LevelChunkPacket.ID=58;
+SetCommandsEnabledPacket.ID=59;
+SetDifficultyPacket.ID=60;
+ChangeDimensionPacket.ID=61;
+SetPlayerGameTypePacket.ID=62;
+PlayerListPacket.ID=63;
+SimpleEventPacket.ID=64;
+EventPacket.ID=65;
+SpawnExperienceOrbPacket.ID=66;
+ClientboundMapItemDataPacket.ID=67;
+MapInfoRequestPacket.ID=68;
+RequestChunkRadiusPacket.ID=69;
+ChunkRadiusUpdatedPacket.ID=70;
+ItemFrameDropItemPacket.ID=71;
+GameRulesChangedPacket.ID=72;
+CameraPacket.ID=73;
+BossEventPacket.ID=74;
+ShowCreditsPacket.ID=75;
+AvailableCommandsPacket.ID=76;
+CommandRequestPacket.ID=77;
+CommandBlockUpdatePacket.ID=78;
+CommandOutputPacket.ID=79;
+UpdateTradePacket.ID=80;
+UpdateEquipPacket.ID=81;
+ResourcePackDataInfoPacket.ID=82;
+ResourcePackChunkDataPacket.ID=83;
+ResourcePackChunkRequestPacket.ID=84;
+TransferPacket.ID=85;
+PlaySoundPacket.ID=86;
+StopSoundPacket.ID=87;
+SetTitlePacket.ID=88;
+AddBehaviorTreePacket.ID=89;
+StructureBlockUpdatePacket.ID=90;
+ShowStoreOfferPacket.ID=91;
+PurchaseReceiptPacket.ID=92;
+PlayerSkinPacket.ID=93;
+SubClientLoginPacket.ID=94;
+AutomationClientConnectPacket.ID=95;
+SetLastHurtByPacket.ID=96;
+BookEditPacket.ID=97;
+NpcRequestPacket.ID=98;
+PhotoTransferPacket.ID=99;
+ModalFormRequestPacket.ID=100;
+ModalFormResponsePacket.ID=101;
+ServerSettingsRequestPacket.ID=102;
+ServerSettingsResponsePacket.ID=103;
+ShowProfilePacket.ID=104;
+SetDefaultGameTypePacket.ID=105;
+RemoveObjectivePacket.ID=106;
+SetDisplayObjectivePacket.ID=107;
+SetScorePacket.ID=108;
+LabTablePacket.ID=109;
+UpdateBlockSyncedPacket.ID=110;
+MoveActorDeltaPacket.ID=111;
+SetScoreboardIdentityPacket.ID=112;
+SetLocalPlayerAsInitializedPacket.ID=113;
+UpdateSoftEnumPacket.ID=114;
+NetworkStackLatencyPacket.ID=115;
+ScriptCustomEventPacket.ID=117;
+SpawnParticleEffectPacket.ID=118;
+AvailableActorIdentifiersPacket.ID=119;
+LevelSoundEventPacketV2.ID=120;
+NetworkChunkPublisherUpdatePacket.ID=121;
+BiomeDefinitionListPacket.ID=122;
+LevelSoundEventPacket.ID=123;
+LevelEventGenericPacket.ID=124;
+LecternUpdatePacket.ID=125;
+AddEntityPacket.ID=127;
+RemoveEntityPacket.ID=128;
+ClientCacheStatusPacket.ID=129;
+OnScreenTextureAnimationPacket.ID=130;
+MapCreateLockedCopyPacket.ID=131;
+StructureTemplateDataRequestPacket.ID=132;
+StructureTemplateDataResponsePacket.ID=133;
+ClientCacheBlobStatusPacket.ID=135;
+ClientCacheMissResponsePacket.ID=136;
+EducationSettingsPacket.ID=137;
+EmotePacket.ID=138;
+MultiplayerSettingsPacket.ID=139;
+SettingsCommandPacket.ID=140;
+AnvilDamagePacket.ID=141;
+CompletedUsingItemPacket.ID=142;
+NetworkSettingsPacket.ID=143;
+PlayerAuthInputPacket.ID=144;
+CreativeContentPacket.ID=145;
+PlayerEnchantOptionsPacket.ID=146;
+ItemStackRequestPacket.ID=147;
+ItemStackResponsePacket.ID=148;
+PlayerArmorDamagePacket.ID=149;
+CodeBuilderPacket.ID=150;
+UpdatePlayerGameTypePacket.ID=151;
+EmoteListPacket.ID=152;
+PositionTrackingDBServerBroadcastPacket.ID=153;
+PositionTrackingDBClientRequestPacket.ID=154;
+DebugInfoPacket.ID=155;
+PacketViolationWarningPacket.ID=156;
+MotionPredictionHintsPacket.ID=157;
+AnimateEntityPacket.ID=158;
+CameraShakePacket.ID=159;
+PlayerFogPacket.ID=160;
+CorrectPlayerMovePredictionPacket.ID=161;
+ItemComponentPacket.ID=162;
+FilterTextPacket.ID=163;
+ClientboundDebugRendererPacket.ID=164;
+SyncActorPropertyPacket.ID=165;
+AddVolumeEntityPacket.ID=166;
+RemoveVolumeEntityPacket.ID=167;
+SimulationTypePacket.ID=168;
+NpcDialoguePacket.ID=169;

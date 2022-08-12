@@ -2,8 +2,7 @@ import { AttributeId, MobEffectIds } from "../enums";
 import { mcglobal } from "../mcglobal";
 import { Actor, ActorUniqueID, AttributeInstance, DimensionId, MobEffect, MobEffectInstance, RelativeFloat, TeleportCommand, Vec3 } from "../minecraft";
 import { bin64_t } from "../nativetype";
-import colors = require('colors');
-import asmcode = require("../asm/asmcode");
+import * as colors from 'colors';
 
 const entityKey = Symbol('entity');
 const entityMapper = Symbol('entityMapper');
@@ -25,8 +24,6 @@ const ATTRIBUTE_ID_MIN = AttributeId.ZombieSpawnReinforcementsChange;
 const ATTRIBUTE_ID_MAX = AttributeId.JumpStrength;
 
 export class Entity {
-    public entity:IEntity|null = null;
-
     constructor(protected actor:ActorX|null) {
     }
 
@@ -68,10 +65,7 @@ export class Entity {
         return this.actorMust().getUniqueID().value;
     }
 
-    /**
-     * @deprecated compatibility warning. it returns the native class of Bedrock Dedicated Server. it can be modified by updates.
-     */
-    getAttributeInstance(id:AttributeId):AttributeInstance {
+    private getAttributeInstance(id:AttributeId):AttributeInstance {
         if (id < ATTRIBUTE_ID_MIN || id > ATTRIBUTE_ID_MAX) throw Error(`AttributeId ${id}, Out of range`);
         const instance = this.actorMust().getAttributes().getMutableInstance(id);
         if (instance === null) throw Error(`${this} has not ${AttributeId[id]} attribute`);
@@ -157,14 +151,6 @@ export class Entity {
             return null;
         }
         return actorx[entityKey] = entity;
-    }
-
-    /**
-     * from the scripting API entity.
-     */
-    static fromEntity(entity:IEntity):Entity|null {
-        const u = entity.__unique_id__;
-        return Entity.fromUniqueId(u["64bit_low"], u["64bit_high"]);
     }
 
     toString():string {

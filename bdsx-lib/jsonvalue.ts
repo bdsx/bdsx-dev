@@ -1,6 +1,6 @@
 import { abstract } from "./common";
 import { makefunc } from "./makefunc";
-import { minecraftTsReady } from "./minecraft_impl/ready";
+import { minecraftTsReady } from "./minecraft/ext_ready";
 import { NativeType } from "./nativetype";
 
 export const JsonValue = new NativeType<any>(

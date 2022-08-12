@@ -10,7 +10,7 @@ import { makefunc } from './makefunc';
 import { nativeClass, nativeField } from './nativeclass';
 import { bool_t, CxxString, int32_t, NativeType, Type, void_t } from './nativetype';
 import { SharedPtr } from './sharedpointer';
-import minecraft = require('./minecraft');
+import * as minecraft from './minecraft';
 import CommandVersion = minecraft.CommandVersion;
 
 // registerer
@@ -109,7 +109,7 @@ export class CustomCommandFactory {
 // executer
 
 const commandVersion = CommandVersion.CurrentVersion;
-const commandContextRefCounterVftable = minecraft.std._Ref_count_obj2.make(minecraft.CommandContext).addressof_vftable;
+const commandContextRefCounterVftable = minecraft.std._Ref_count_obj2.make(minecraft.CommandContext).vftable;
 const CommandContextSharedPtr = SharedPtr.make(CommandContext);
 
 function createCommandContext(command:CxxString, commandOrigin:CommandOrigin):SharedPtr<CommandContext> {

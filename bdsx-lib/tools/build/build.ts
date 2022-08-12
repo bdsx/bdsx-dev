@@ -1,35 +1,26 @@
 
-import { bundle, tscompile } from 'if-tsb';
-import { isMainThread, Worker, workerData } from 'worker_threads';
+import * as colors from 'colors';
+import { bundle } from 'if-tsb';
+import { isMainThread, workerData } from 'worker_threads';
 import { fsutil } from '../../fsutil';
+import { generateDirectoryImport } from '../dirimport';
 import { enumgen } from '../enumgen/enumgen';
+import { bedrockServerInfo } from '../lib/bedrockserverinfo';
 import { buildlib } from '../lib/buildlib';
-import child_process = require('child_process');
-import path = require('path');
-import fs = require('fs');
-import colors = require('colors');
-import ts = require('typescript');
 
-const tasks:Record<string, ()=>(Promise<void>|void)> = {
+const tasks = {
     async main():Promise<void> {
         await Promise.all([
             tasks.asm(),
             tasks.enums(),
+            tasks.minecraft_impl(),
         ]);
         tasks.copy();
         await tasks.v3();
-        new Worker(path.join(__dirname, 'build.bundle.js'), {
-            workerData: { target: 'tsc' }
-        });
     },
     asm():Promise<void> {
-        const asmBuildProcess = child_process.fork('./tools/bundlerun.js', ['./tools/build/buildasm.ts'], {
-            execPath: '../bdsx/bedrock_server/bedrock_server.exe',
-            stdio: 'inherit',
-            env: {NODE_OPTIONS: ''}
-        });
-        const prom = new Promise<void>((resolve, reject)=>{
-            asmBuildProcess.once('message', (message)=>{
+        return new Promise<void>((resolve, reject)=>{
+            bedrockServerInfo.fork('./tools/build/buildasm.ts').once('message', (message)=>{
                 if (message === 'firstbuild') {
                     resolve();
                 } else {
@@ -37,35 +28,25 @@ const tasks:Record<string, ()=>(Promise<void>|void)> = {
                 }
             });
         });
-        function killChildren():void {
-            asmBuildProcess.kill();
-        }
-        process.on('SIGINT', killChildren);
-        process.on('SIGTERM', killChildren);
-        process.on('exit', killChildren);
-        return prom;
     },
-    copy():void {
-        buildlib.watchPromise('copy', '.', [
-            '**/*.json',
-            '**/*.js',
-            '**/*.d.ts',
-            '!**/*.bundle.js',
-            '!.eslintrc.json',
-            '!package.json',
-            '!package-lock.json',
+    copy():Promise<void> {
+        return buildlib.watchPromise('copy', '.', [
+            '**/*.dnfdb',
+            'typings/**/*',
             '!node_modules/**/*',
-            '!v3/**/*',
-            '!tools/**/*',
-            '!tsconfig.json',
         ], files=>files.dest('../bdsx/bdsx').copyModified());
     },
+    minecraft_impl():Promise<void> {
+        return buildlib.watchPromise('dirimport minecraft/ext', '.', './minecraft/ext/**/*.ts', async(files)=>{
+            await generateDirectoryImport('./minecraft/ext.all.ts', './minecraft/ext');
+        });
+    },
     enums():Promise<void> {
-        const enums_dir = './enums_ini';
+        const enums_dir = './minecraft/enums_ini';
         return buildlib.watchPromise('enums_ini build', '.', enums_dir+'/*.ini', async(files)=>{
-            const {js, dts} = await enumgen(enums_dir);
-            const dtsPath = './minecraft_impl/enums.d.ts';
-            const jsPath = './minecraft_impl/enums.js';
+            const {js, dts} = await enumgen('.', '.', enums_dir);
+            const dtsPath = './minecraft/enums.d.ts';
+            const jsPath = './minecraft/enums.js';
             await fsutil.writeFile(dtsPath, dts);
             await fsutil.writeFile(jsPath, js);
         });
@@ -73,56 +54,18 @@ const tasks:Record<string, ()=>(Promise<void>|void)> = {
     v3():Promise<void> {
         return new Promise<void>(resolve=>{
             const tsconfig = bundle.getTsConfig() || {};
-            tsconfig.entry = { './index.ts':'../../bdsx/bdsx/v3/index.js' };
+            tsconfig.entry = { './v3/index.ts':'../bdsx/bdsx/v3.js' };
             if (tsconfig.bundlerOptions == null) tsconfig.bundlerOptions = {};
-            tsconfig.bundlerOptions!.externals = [
-                '../*',
-            ];
             tsconfig.compilerOptions!.typeRoots = ['../typings'];
-            bundle.watch(['v3'], tsconfig, {
+            tsconfig.compilerOptions!.types = ['node', 'minecraft'];
+            bundle.watch(['.'], tsconfig, {
                 onFinish: resolve
             });
-        });
-    },
-    async tsc():Promise<void> {
-        // bdsx tsc build
-        const destSet = new Set<string>();
-        const tsconfig = bundle.getTsConfig() || {};
-        const parsed = ts.parseJsonConfigFileContent(tsconfig, ts.sys, process.cwd());
-        parsed.options.rootDir = path.resolve('.');
-
-        const compilerHost = ts.createIncrementalCompilerHost(parsed.options);
-        compilerHost.writeFile = (file, contents)=>{
-            if (!destSet.has(fsutil.replaceExt(file, '.ts'))) {
-                return;
-            }
-            fs.writeFileSync(file, contents);
-        };
-
-        let program:ts.SemanticDiagnosticsBuilderProgram|undefined;
-
-        buildlib.watch('tsc', '.', [
-            '**/*.ts',
-            '!**/*.d.ts',
-            '!node_modules/**/*',
-            '!v3/**/*',
-            '!tools/**/*',
-            '!externs/**/*'
-        ], async(files)=>{
-            const apathes = files.files.map(file=>file.apath);
-            for (const file of files.dest(path.resolve('../bdsx/bdsx')).files) {
-                destSet.add(file.apath.replace(/\\/g, '/'));
-            }
-
-            program = ts.createSemanticDiagnosticsBuilderProgram(apathes, parsed.options, compilerHost, program);
-            const res = program.emit();
-            tscompile.report(res.diagnostics);
-            destSet.clear();
         });
     },
 };
 
 const taskName = (!isMainThread && workerData && workerData.target) || 'main';
-const task = tasks[taskName];
+const task = tasks[taskName as keyof typeof tasks];
 if (task != null) task();
 else console.error(colors.red(`Undefined task: ${taskName}`));

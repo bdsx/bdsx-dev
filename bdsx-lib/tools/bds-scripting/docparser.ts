@@ -5,7 +5,6 @@ import { HtmlSearcher, htmlutil } from './htmlutil';
 import { styling } from './styling';
 import { DocField, DocFixItem, DocMethod, DocType as DocType } from './type';
 
-const DOCURL_SCRIPTING = 'https://bedrock.dev/docs/stable/Scripting';
 const DOCURL_ADDONS = 'https://bedrock.dev/docs/stable/Addons';
 
 const targetDir = './typings/minecraft';
@@ -14,11 +13,20 @@ const OUT_ADDONS = 'generated.addons.d.ts';
 
 const docfixRaw = require('./docfix.json') as Record<string, DocFixItem|string|null>;
 docfixRaw.__proto__ = null;
-const docfix = new Map<string, DocType>();
+
+class DocFix extends Map<string, DocType> {
+    poll(name:string):DocType|undefined {
+        const item = this.get(name);
+        if (item != null) this.delete(name);
+        return item;
+    }
+}
+const docfix = new DocFix();
 for (const name in docfixRaw) {
     const item = docfixRaw[name];
     docfix.set(name, DocType.fromDocFix(item));
 }
+docfix.delete('$schema');
 
 const BINDING_SUFFIX = ' Bindings';
 const COMPONENT_SUFFIX = ' Components';
@@ -30,22 +38,22 @@ const listenerEvents = new DocType;
 const triggerEvents = new DocType;
 
 async function printInterface(writer:FileWriter, iname:string, s:HtmlSearcher):Promise<void> {
-
     let type:DocType|null = null;
     try {
         type = DocType.fromTable(s.searchTableAsObject());
-    } finally {
-        const docfixItem = docfix.get(iname);
-        if (docfixItem) {
-            if (type) type.patch(docfixItem);
-            else type = docfixItem;
-        }
-        if (type === null) {
-            type = DocType.inline('any');
-            type.desc = 'Not documented';
-        }
-        await type.writeTo(iname, writer);
+    } catch (err) {
+        if (err !== HtmlSearcher.EOF) throw err;
     }
+    const docfixItem = docfix.poll(iname);
+    if (docfixItem) {
+        if (type) type.patch(docfixItem);
+        else type = docfixItem;
+    }
+    if (type === null) {
+        type = DocType.inline('any');
+        type.desc = 'Not documented';
+    }
+    await type.writeTo(iname, writer);
 }
 
 async function printComponent(writer:FileWriter, id:string, postfix:string, s:HtmlSearcher):Promise<string> {
@@ -62,6 +70,7 @@ async function printComponent(writer:FileWriter, id:string, postfix:string, s:Ht
 
 async function parseScriptingDoc():Promise<void> {
     console.log('# Parse Scripting Document');
+    // const json = await htmlutil.wgetElement(DOCURL_SCRIPTING, 'html', 'body', {tag:'script', id:'__NEXT_DATA__'});
     const base = await htmlutil.wgetElement(DOCURL_SCRIPTING, 'html', 'body', 'div', 'div', 'div', 'div', 'div', 'div');
     if (base === null) {
         console.error(`Scripting: Target element not found`);
@@ -75,7 +84,7 @@ async function parseScriptingDoc():Promise<void> {
 
     try {
         const s = new HtmlSearcher(base);
-        await s.minecraftDocHeader('Item', 'h1', async(node, id)=>{
+        await s.minecraftDocHeader('Item', 'h1', async(id)=>{
             console.log(id);
             const iname = styling.apiObjectNameToInterfaceName(id);
             if (iname !== null) {
@@ -90,11 +99,11 @@ async function parseScriptingDoc():Promise<void> {
                 }
                 console.log(` └ interface ${iname}`);
                 await printInterface(writer, iname, s);
-                if (iname === 'ILevelTickingArea') {
+                if (iname === 'ITickingArea') {
                     s.leave();
                 }
             } else if (id.endsWith(BINDING_SUFFIX) || id === 'Entity Queries' || id === 'Slash Commands') {
-                await s.minecraftDocHeader('Function', 'h2', async(node, id)=>{
+                await s.minecraftDocHeader('Function', 'h2', async(id)=>{
                     console.log(` └ ${id}`);
                     const p = s.nextIf('p');
                     const desc = p !== null ? p.innerText : '';
@@ -152,7 +161,7 @@ async function parseScriptingDoc():Promise<void> {
                 });
             } else if (id.endsWith(COMPONENT_SUFFIX)) {
                 if (id === 'Client Components') return;
-                await s.minecraftDocHeader('Components', 'h2', async(node, id)=>{
+                await s.minecraftDocHeader('Components', 'h2', async(id)=>{
                     const name = await printComponent(writer, id, 'Component', s);
                     if (name) {
                         compMap.fields.push(new DocField(id, DocType.inline(`IComponent<${name}>`)));
@@ -162,11 +171,11 @@ async function parseScriptingDoc():Promise<void> {
             } else if (id.endsWith(EVENT_SUFFIX)) {
                 if (id === 'Client Events') return;
 
-                await s.minecraftDocHeader('Types', 'h2', async(node, id)=>{
+                await s.minecraftDocHeader('Types', 'h2', async(id)=>{
                     console.log(` └ ${id}`);
                     switch (id) {
                     case 'Listening Events':
-                        await s.minecraftDocHeader('Events', 'h3', async(node, id)=>{
+                        await s.minecraftDocHeader('Events', 'h3', async(id)=>{
                             const name = await printComponent(writer, id, 'EventData', s);
                             if (name) {
                                 listenerEvents.fields.push(new DocField(id, DocType.inline(`IEventData<${name}>`)));
@@ -174,7 +183,7 @@ async function parseScriptingDoc():Promise<void> {
                         });
                         break;
                     case 'Trigger-able Events':
-                        await s.minecraftDocHeader('Events', 'h3', async(node, id)=>{
+                        await s.minecraftDocHeader('Events', 'h3', async(id)=>{
                             const name = await printComponent(writer, id, 'Parameters', s);
                             if (name) {
                                 triggerEvents.fields.push(new DocField(id, DocType.inline(`IEventData<${name}>`)));
@@ -193,7 +202,10 @@ async function parseScriptingDoc():Promise<void> {
     await compMap.writeTo('MinecraftComponentNameMap', writer);
     await triggerEvents.writeTo('MinecraftServerEventNameMap', writer);
     await listenerEvents.writeTo('MinecraftClientEventNameMap', writer);
-    system.patch(docfix.get('IVanillaServerSystem')!);
+    system.patch(docfix.poll('IVanillaServerSystem')!);
+    for (const [key, fix] of docfix) {
+        fix.writeTo(key, writer);
+    }
     await system.writeTo('IVanillaServerSystem', writer);
     await writer.write('}\nexport {};\n');
     await writer.end();
@@ -215,7 +227,7 @@ async function parseAddonsDoc():Promise<void> {
     await writer.write(`declare global {\n\n`);
 
     try {
-        await s.minecraftDocHeader('Blocks', 'h1', async(node, id)=>{
+        await s.minecraftDocHeader('Blocks', 'h1', async(id)=>{
             console.log(id);
             switch (id) {
             case 'Blocks':

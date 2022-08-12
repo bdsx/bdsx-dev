@@ -5,7 +5,6 @@ import colors = require('colors');
 let deprecateWarned = false;
 function warn():void {
     if (!deprecateWarned) {
-        debugger;
         deprecateWarned = true;
         console.error(colors.yellow("proc/proc2 is deprecated. use items in 'bdsx/minecraft'."));
     }

@@ -9,6 +9,10 @@ enum FieldType {
     FunctionBase,
 }
 
+interface Identifier extends PdbId<any> {
+    dontExport?:boolean;
+}
+
 function getFieldType(item:PdbId<PdbId.Data>):FieldType {
     if (item.isStatic) {
         return FieldType.Static;
@@ -53,6 +57,14 @@ export class PdbIdSet<T extends PdbId.Data> {
 class IdFieldMap implements Iterable<PdbIdSet<any>> {
 
     private readonly map = new Map<string, PdbIdSet<any>>();
+
+    has(name:string):boolean {
+        return this.map.has(name);
+    }
+
+    find(name:string):PdbIdSet<any>|undefined {
+        return this.map.get(name);
+    }
 
     append(list:Iterable<PdbIdSet<any>>, isStatic:boolean):this {
         for (const item of list) {
@@ -111,14 +123,14 @@ export class PdbMemberList {
     public readonly inNamespace = new IdFieldMap;
     public readonly staticMember = new IdFieldMap;
     public readonly member = new IdFieldMap;
-    public readonly functionBases = new IdFieldMap;
+    public readonly functionBasePtrs = new IdFieldMap;
 
     push(base:PdbId<PdbId.Data>, item:PdbId<PdbId.Data>):void {
         this.getSet(base, item).push(item);
     }
 
     getFunctionBaseSet(base:PdbId<PdbId.HasOverloads>):PdbIdSet<PdbId.Data> {
-        return this.functionBases.get(base, true);
+        return this.functionBasePtrs.get(base, true);
     }
 
     getSet<T extends PdbId.Data>(base:PdbId<PdbId.Data>, item:PdbId<T> = base as any):PdbIdSet<T> {
@@ -143,11 +155,82 @@ export class PdbMemberList {
         return [...this.inNamespace].sort(nameSort);
     }
     sortedFunctionBases():PdbIdSet<any>[]{
-        return [...this.functionBases].sort(nameSort);
+        return [...this.functionBasePtrs].sort(nameSort);
+    }
+
+    containsInNamespace(name:string, type:AbstractClass<PdbId.Data>):boolean {
+        let item = this.staticMember.find(name);
+        if (item != null && item.base.is(type)) return true;
+        item = this.inNamespace.find(name);
+        if (item != null && item.base.is(type)) return true;
+        item = this.functionBasePtrs.find(name);
+        if (item != null && item.base.is(type)) return true;
+        return false;
+    }
+
+
+    pushField(item:Identifier):void {
+        if (item.parent === null) {
+            throw Error(`${item.name}: parent not found`);
+        }
+        if (item.dontExport) return;
+        if (!PdbId.filter(item)) return;
+        if (item.is(PdbId.Decorated)) return;
+        if (item.is(PdbId.FunctionType)) return;
+        if (item.is(PdbId.MemberPointerType)) return;
+        if (item.is(PdbId.TemplateFunctionNameBase)) return;
+        if (item.templateBase !== null) return; // class or function template
+        if (item.is(PdbId.Function)) return;
+
+        if (item.hasOverloads()) {
+            for (const o of item.data.allOverloads()) {
+                if (!PdbId.filter(o)) continue;
+                if (!o.data.functionParameters.every(PdbId.filter)) {
+                    continue;
+                }
+                if (o.parent !== null && !PdbId.filter(o.parent)) {
+                    continue;
+                }
+                if (o.data.returnType !== null && !PdbId.filter(o.data.returnType)) {
+                    continue;
+                }
+                this.push(item, o);
+            }
+
+            const baseset = this.getFunctionBaseSet(item);
+            if (item.address !== 0) {
+                baseset.push(item);
+            }
+            if (item.is(PdbId.TemplateFunctionBase)) {
+                for (const s of item.data.specialized) {
+                    if (s.address !== 0) {
+                        if (!PdbId.filter(s)) return;
+                        baseset.push(s);
+                    }
+                }
+            }
+        } else {
+            this.push(item, item);
+        }
+    }
+
+    pushAllFields(item:PdbId<PdbId.Data>):void {
+        if (item.is(PdbId.TemplateBase)) {
+            if (item.data.specialized.length !== 0) {
+                for (const specialized of item.data.specialized) {
+                    if (!PdbId.filter(specialized)) continue;
+                    for (const child of specialized.children.values()) {
+                        this.pushField(child);
+                    }
+                }
+            }
+        }
+        for (const child of item.children.values()) {
+            this.pushField(child);
+        }
     }
 }
 
 function nameSort(a:PdbIdSet<any>, b:PdbIdSet<any>):number {
     return a.base.name.localeCompare(b.base.name);
 }
-

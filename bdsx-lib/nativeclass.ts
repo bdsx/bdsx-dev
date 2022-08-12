@@ -2,7 +2,7 @@ import { capi } from "./capi";
 import { CircularDetector } from "./circulardetector";
 import { AnyFunction, Bufferable, emptyFunc, Encoding, TypeFromEncoding } from "./common";
 import { NativePointer, PrivatePointer, StaticPointer, StructurePointer, VoidPointer } from "./core";
-import { makefunc, TypeIn } from "./makefunc";
+import { makefunc } from "./makefunc";
 import { NativeDescriptorBuilder, NativeType, Type } from "./nativetype";
 import { Singleton } from "./singleton";
 import { isBaseOf } from "./util";
@@ -290,7 +290,6 @@ export class NativeClass extends StructurePointer {
     static isNativeClassType(type:Record<string, any>):type is typeof NativeClass {
         return isNativeClass in type;
     }
-    static getIndex = TypeIn.getIndex;
 
     [NativeType.size]:number;
 

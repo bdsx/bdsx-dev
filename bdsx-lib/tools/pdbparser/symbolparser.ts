@@ -1,12 +1,13 @@
-import { AbstractClass, notImplemented } from "../../common";
+import * as fs from 'fs';
+import * as path from 'path';
+import * as ProgressBar from 'progress';
+import { AbstractClass } from "../../common";
 import { templateName } from "../../templatename";
 import { LanguageParser } from "../../textparser";
 import { arraySame, isBaseOf } from "../../util";
+import { DataFileStream } from "../../writer/datafilestream";
+import { DeferIdMap } from './deferidmap';
 import { PdbCache } from "./pdbcache";
-import fs = require('fs');
-import path = require('path');
-import ProgressBar = require('progress');
-import { DataFileStream } from "./datafilestream";
 
 export class DecoSymbol {
     public readonly needSpace:boolean;
@@ -237,6 +238,7 @@ function corrupted(message:string):never {
 }
 
 const keys:PdbId<PdbId.Key>[] = [];
+const deferIdMap = new DeferIdMap<PdbId<any>>();
 
 class IdError extends Error {
     public readonly ids:PdbId<PdbId.Data>[];
@@ -268,6 +270,7 @@ export class PdbId<DATA extends PdbId.Data> {
     public templateBase:PdbId<PdbId.TemplateBase>|null = null;
     public templateParameters:PdbId<PdbId.Data>[]|null = null;
     public params:PdbId<PdbId.Data>[]|null = null;
+    public superClass:PdbId<PdbId.Data>|null = null;
 
     public readonly children:PdbId<PdbId.Data>[] = [];
 
@@ -300,7 +303,7 @@ export class PdbId<DATA extends PdbId.Data> {
         ds.writeInt32(this.address);
         ds.writeString(this.source);
 
-        ds.writeBooleans(
+        ds.writeBooleans([
             this.deleted,
             this.isPrivate,
             this.isStatic,
@@ -313,7 +316,7 @@ export class PdbId<DATA extends PdbId.Data> {
             this.templateParameters !== null,
             this.params !== null,
             this.modifier !== null,
-        );
+        ]);
         this.data.serialize(ds);
     }
 
@@ -634,6 +637,13 @@ export class PdbId<DATA extends PdbId.Data> {
         return PdbId.keyMap.get(PdbId.makeChildKey(this, name)) || null;
     }
 
+    /**
+     * get child of templates
+     */
+    getAllChild(name:string):PdbId<PdbId.Data>[] {
+        return this.data.getAllChild(name);
+    }
+
     getArraySize():number|null {
         let node:PdbId<PdbId.Data> = this;
         for (;;) {
@@ -883,6 +893,10 @@ export namespace PdbId {
             }
             return typename.data.makeSpecialized([this.id]);
         }
+        getAllChild(name:string):PdbId<Data>[] {
+            const item = this.id.getChild(name);
+            return item !== null ? [item] : [];
+        }
 
         getPointerTypeOfIt():PdbId<Data> {
             return this.getTypeOfIt().decorate(DecoSymbol['*']);
@@ -958,6 +972,9 @@ export namespace PdbId {
             super.serialize(ds);
             ds.writeInt32(this.value);
         }
+        deserialize(ds:DataFileStream):void {
+            this.value = ds.readInt32();
+        }
     }
     @pdbIdDataType
     export class ClassLike extends NamespaceLike {
@@ -989,7 +1006,10 @@ export namespace PdbId {
         }
         serialize(ds:DataFileStream):void {
             super.serialize(ds);
-            ds.writeBooleans(this.canBeTemplateBase);
+            ds.writeBooleans([this.canBeTemplateBase]);
+        }
+        deserialize(ds:DataFileStream):void {
+            [this.canBeTemplateBase] = ds.readBooleans(1);
         }
     }
     @pdbIdDataType
@@ -1004,6 +1024,12 @@ export namespace PdbId {
         *_components():IterableIterator<PdbId<PdbId.Data>> {
             for (const type of this.unionedTypes) {
                 yield * type.componentsWithThis();
+            }
+        }
+        serialize(ds:DataFileStream):void {
+            super.serialize(ds);
+            for (const type of this.unionedTypes) {
+                ds.writeLeb128(type.id);
             }
         }
         abstract getOperation():'&'|'|';
@@ -1036,6 +1062,14 @@ export namespace PdbId {
         makeSpecialized(args:PdbId<Data>[], source?:string):PdbId<Data> {
             return makeSpecialized(this.id, args, source);
         }
+        getAllChild(name:string):PdbId<Data>[] {
+            const out:PdbId<Data>[] = super.getAllChild(name);
+            for (const specialized of this.specialized) {
+                const item = specialized.getChild(name);
+                if (item !== null) out.push(item);
+            }
+            return out;
+        }
 
         convertTo<T extends Data>(type:new(id:PdbId<any>)=>T):T {
             if (type === FunctionBase as any || type === TemplateFunctionBase as any) {
@@ -1051,7 +1085,10 @@ export namespace PdbId {
         }
         deserialize(ds:DataFileStream):void {
             super.deserialize(ds);
-            notImplemented(); // TODO: get pdbids from id map
+            const list = ds.readArray(ds=>ds.readLeb128());
+            deferIdMap.gets(list).then(values=>{
+                this.specialized = values;
+            });
         }
     }
     @pdbIdDataType
@@ -1070,6 +1107,14 @@ export namespace PdbId {
         }
         toStringWith(name:string):string {
             return (this.returnType === null ? '[[null]]' : this.returnType)+' '+name;
+        }
+        serialize(ds:DataFileStream):void {
+            super.serialize(ds);
+            // ds.writeLeb128(this.returnType.id);
+        }
+        deserialize(ds:DataFileStream):void {
+            super.deserialize(ds);
+            // TODO: implement
         }
     }
     @pdbIdDataType
@@ -1610,7 +1655,7 @@ class DecoParser {
                                 this.base = this.base.makeChild("`RTTI Type Descriptor'");
                                 this.base.source = parser.getFrom(sourceFrom);
                                 const data = this.base.determine(PdbId.Variable);
-                                data.returnType = void_t;
+                                data.returnType = null;
                                 this.base.isStatic = true;
                                 continue;
                             }
@@ -1861,6 +1906,7 @@ function parseIdentity(eof:string, info:{isTypeInside?:boolean, scope?:PdbId<Pdb
                             } else {
                                 id = scope.makeChild(parser.getFrom(from));
                             }
+                            id.isStatic = true;
                         } else if (parser.nextIf("vcall'")) {
                             const arg = parser.readTo("'");
                             parser.nextIf(" }'");
@@ -2207,8 +2253,12 @@ PdbId.parse('class std::basic_ostringstream<char,class std::char_traits<char>,cl
 PdbId.parse('class std::basic_stringstream<char,class std::char_traits<char>,class std::allocator<char> >');
 
 const CACHE_VERSION = 1;
+
+/**
+ * not implemented fully
+ */
 function serializeAll():void {
-    const ds = new DataFileStream(__dirname+path.sep+'pdbcacheparsed.bin', 'w');
+    const ds = new DataFileStream(fs.openSync(__dirname+path.sep+'pdbcacheparsed.bin', 'w'));
     ds.writeInt32(CACHE_VERSION);
     for (const v of PdbId.keyMap.values()) {
         v.serialize(ds);

@@ -2,9 +2,10 @@
 import fs = require('fs');
 import path = require('path');
 import { notImplemented, unreachable } from '../../common';
-import { intToVarString } from '../../util';
+import { arrayEquals, intToVarString, isNumberOnly } from '../../util';
 import { FileLineWriter, LineWriter, StringLineWriter } from '../writer/linewriter';
-import { UnusedName } from './unusedname';
+import { unique } from '../../unique';
+import { ScopeMethod, UnusedName } from './unusedname';
 
 enum Precedence {
     Default=0,
@@ -69,7 +70,7 @@ export namespace tsw {
     }
 
     export interface DefinationHost {
-        addFunctionDecl(name:Name|Property, params:DefineItem[], returnType:Type|null, isStatic:boolean):void;
+        addFunctionDecl(name:Name|Property, params:DefineItem[], returnType:Type|null, isStatic:boolean, templates?:TemplateDecl):void;
         addVariable(name:Name|Property, type:Type|null, isStatic:boolean, isReadOnly:boolean, initial?:Value|null):void;
         const(name:Name, type:Type|null, value:Value):void;
     }
@@ -572,7 +573,7 @@ export namespace tsw {
         cloneToDecl():Block {
             const newblock = new Block;
             for (const item of this.items) {
-                if ((item instanceof Export) || item instanceof TypeDef) {
+                if (item instanceof Export || item instanceof TypeDef || item instanceof ImportDirect || item instanceof Import || item instanceof ImportOnly) {
                     const cloned = item.cloneToDecl();
                     if (cloned === null) continue;
                     newblock.write(cloned);
@@ -616,11 +617,13 @@ export namespace tsw {
             this.write(res);
             return res;
         }
-        addFunctionDecl(name:Name|Property, params:DefineItem[], returnType:Type|null, isStatic:boolean):void {
+        addFunctionDecl(name:Name|Property, params:DefineItem[], returnType:Type|null, isStatic:boolean, templates?:tsw.TemplateDecl):void {
             if (!(name instanceof Name)) {
                 name = name.toName().value;
             }
-            this.write(new Export(new FunctionDecl(name, params, returnType)));
+            const func = new FunctionDecl(name, params, returnType);
+            if (templates != null) func.templates = templates;
+            this.write(new Export(func));
         }
         addVariable(name:Name|Property, type:Type|null, isStatic:boolean, isReadOnly:boolean, initial?:Value|null):void {
             if (!(name instanceof Name)) {
@@ -665,6 +668,16 @@ export namespace tsw {
     }
 
     export abstract class DefineItem extends ItemBase {
+        *all():IterableIterator<Type> {
+            // empty
+        }
+        replaceAll(from:tsw.Type, to:tsw.Type):DefineItem {
+            return this;
+        }
+        merge(other:DefineItem, info:MergeInfo):DefineItem|null {
+            throw Error(`cannot merge ${this.constructor.name}`);
+        }
+
         abstract getDefineNamesWithHost(name:Names, host:Defination):void;
         abstract writeTo(os:LineWriter):void;
         cloneToJS(ctx:JsCloningContext, isConstDefine:boolean):DefineItem|null {
@@ -693,10 +706,30 @@ export namespace tsw {
 
     export class VariableDefineItem extends DefineItem {
         constructor(
-            public name:Name,
-            public type:Type|null = null,
-            public initial:Value|null = null) {
+            public readonly name:Name,
+            public readonly type:Type|null = null,
+            public readonly initial:Value|null = null) {
             super();
+        }
+
+        *all():IterableIterator<Type> {
+            if (this.type === null) return;
+            yield * this.type.all();
+        }
+        replaceAll(from:tsw.Type, to:tsw.Type):DefineItem {
+            if (this.type === null) return this;
+            return unique.make(VariableDefineItem, this.name, this.type.replaceAll(from, to), this.initial);
+        }
+        merge(other:DefineItem, info:MergeInfo):DefineItem|null {
+            if (!(other instanceof VariableDefineItem)) {
+                throw Error(`cannot merge ${other.constructor.name}`);
+            }
+            if (this.type === null) return this;
+            if (other.type === null) return other;
+            const type = this.type.merge(other.type, info);
+            if (this.type === type) return this;
+            if (type === null) return null;
+            return unique.make(VariableDefineItem, this.name, type, this.initial);
         }
 
         cloneToJS(ctx:JsCloningContext, isConstDefine:boolean):DefineItem|null {
@@ -987,11 +1020,13 @@ export namespace tsw {
             this.items.push(new Comment(comment));
         }
 
-        addFunctionDecl(name:Name|Property, params:DefineItem[], returnType:Type|null, isStatic:boolean):void{
+        addFunctionDecl(name:Name|Property, params:DefineItem[], returnType:Type|null, isStatic:boolean, templates?:TemplateDecl):void{
             if (!(name instanceof Property)) {
                 name = name.toProperty();
             }
-            this.write(new MethodDecl(null, isStatic, name, params, returnType));
+            const func = new MethodDecl(null, isStatic, name, params, returnType);
+            if (templates != null) func.templates = templates;
+            this.write(func);
         }
         addVariable(name:Name|Property, type:Type|null, isStatic:boolean, isReadOnly:boolean, initial?:Value|null):void {
             if (!(name instanceof Property)) {
@@ -1297,21 +1332,30 @@ export namespace tsw {
             }
             return new TypeMember(this, name);
         }
-        union<T extends TypeUnion>(unionType:{new(types:Type[]):T}, ...others:Type[]):T {
-            const out:Type[] = [this];
+        union(unionType:new(types:Type[])=>TypeUnion, ...others:Type[]):Type {
+            if (others.length === 0) return this;
+
+            const out = new Set<Type>();
+            out.add(this);
             for (const other of others) {
                 if (other instanceof unionType) {
-                    out.push(...other.types);
+                    for (const type of other.types) {
+                        out.add(type);
+                    }
                 } else {
-                    out.push(other);
+                    out.add(other);
                 }
             }
-            return new unionType(out);
+            return unique.make(unionType, [...out]);
         }
-        and(...others:Type[]):TypeAnd {
+        remove(target:Type):Type {
+            if (target === this) return BasicType.never;
+            return this;
+        }
+        and(...others:Type[]):Type {
             return this.union(TypeAnd, ...others);
         }
-        or(...others:Type[]):TypeOr {
+        or(...others:Type[]):Type {
             return this.union(TypeOr, ...others);
         }
         template(...types:Type[]):TemplateType {
@@ -1320,7 +1364,195 @@ export namespace tsw {
         notNull():Type {
             return this;
         }
-        public static asName(name:string):TypeName {
+        getNameOrThrow():string {
+            throw Error(`${this} does not have name`);
+        }
+        *all():IterableIterator<Type> {
+            yield this;
+        }
+        contains(target:Type):boolean {
+            for (const item of this.all()) {
+                if (item === target) return true;
+            }
+            return false;
+        }
+        count(target:Type):number {
+            let count = 0;
+            for (const item of this.all()) {
+                if (item === target) count ++;
+            }
+            return count;
+        }
+        replaceAll(from:Type, to:Type):Type {
+            return this === from ? to: this;
+        }
+        merge(other:Type, info:MergeInfo):Type|null {
+            if (this === other) {
+                if (!info.wildcardFixed && this.contains(MergeInfo.wildcard)) info.wildcardFixed = true;
+                return this;
+            }
+
+            if (other === info.target2) {
+                // pass
+            } else {
+                if (info.target2 !== null) {
+                    if (!other.contains(info.target2)) {
+                        return null;
+                    }
+                    if (info.wildcardFixed) return null;
+                }
+                info.target2 = other;
+            }
+
+            if (this === info.target1) {
+                // pass
+            } else {
+                if (info.target1 !== null) {
+                    if (!this.contains(info.target1)) {
+                        return null;
+                    }
+                    if (info.wildcardFixed) return null;
+                }
+                info.target1 = this;
+            }
+
+            info.wildcardFixed = true;
+            return MergeInfo.wildcard;
+        }
+        static replaceAll(types:Type[], from:Type, to:Type):Type[] {
+            return types.map(type=>type.replaceAll(from, to));
+        }
+        static merge(types1:Type[], types2:Type[], info:MergeInfo):Type[]|null {
+            const n = types1.length;
+            if (n !== types2.length) throw TypeError('type length mismatch');
+
+            const restypes:Type[] = [];
+            for (let i=0;i<n;i++) {
+                const res = types1[i].merge(types2[i], info);
+                if (res === null) return null;
+                restypes.push(res);
+            }
+            return arrayEquals(restypes, types1) ? types1 : restypes;
+        }
+
+        static smartOr(types:Type[]):Type {
+            if (types.length === 0) throw TypeError('Invalid parameter');
+            let out:Type[] = [];
+
+            function addType(type:Type):void {
+                if (type instanceof TypeOr) {
+                    for (const comp of type.types) {
+                        addType(comp);
+                    }
+                    return;
+                }
+                for (let j=0;j<out.length;j++) {
+                    const target = out[j];
+                    const added = Type.smartOrOnce(target, type, true);
+                    if (added !== null) {
+                        out[j] = added;
+                        return;
+                    }
+                }
+                out.push(type);
+            }
+
+            for (const type of types) {
+                addType(type);
+            }
+
+            const THRESHOLD = 8;
+            if (out.length >= THRESHOLD) {
+                const filted:Type[] = [];
+                let numberCount = 0;
+                for (const item of out) {
+                    if (item instanceof TypeName && isNumberOnly(item.name)) {
+                        numberCount++;
+                    } else {
+                        filted.push(item);
+                    }
+                }
+                if (filted.length === 0) {
+                    return BasicType.number;
+                }
+                filted.push(BasicType.number);
+                out = filted;
+                if (filted.length >= THRESHOLD) {
+                    return BasicType.any;
+                }
+            }
+            if (out.length === 0) return BasicType.never;
+            if (out.length === 1) return out[0];
+            return unique.make(TypeOr, out);
+        }
+
+        private static smartOrOnce(type1:Type, type2:Type, noMakeOr:false):Type;
+        private static smartOrOnce(type1:Type, type2:Type, noMakeOr:true):Type|null;
+
+        private static smartOrOnce(type1:Type, type2:Type, noMakeOr:boolean):Type|null {
+            if (type1 instanceof TypeOr) {
+                if (type2 instanceof TypeOr) {
+                    return Type.smartOr(type1.types.concat(type2.types));
+                } else {
+                    return Type.smartOr(type1.types.concat([type2]));
+                }
+            } else if (type2 instanceof TypeOr) {
+                return Type.smartOr([type1].concat(type2.types));
+            }
+
+            if (type1 === BasicType.any || type2 === BasicType.any) return BasicType.any;
+
+            if (type1 instanceof TemplateType) {
+                if (type2 instanceof TemplateType) {
+                    if (type1.type === type2.type) {
+                        const n = type1.params.length;
+                        if (n === type2.params.length) {
+                            const params = new Array<Type>(n);
+                            for (let i=0;i<n;i++) {
+                                params[i] = Type.smartOrOnce(type1.params[i], type2.params[i], false);
+                            }
+                            return unique.make(TemplateType, type1.type, params);
+                        }
+                    }
+                }
+            } else if (type1 instanceof FunctionType) {
+                _fail: if (type2 instanceof FunctionType) {
+                    let paramChanged = false;
+                    const params1 = type1.params.params;
+                    const params2 = type2.params.params;
+                    const n = params1.length;
+                    const params = new Array<VariableDefineItem>(n);
+                    if (n === params2.length) {
+                        for (let i=0;i<n;i++) {
+                            const param1 = params1[i];
+                            const param2 = params2[i];
+                            if (param1 instanceof VariableDefineItem && param2 instanceof VariableDefineItem) {
+                                if (param1.initial !== param2.initial) break _fail;
+                                const newType = Type.smartOrOnce(param1.type || BasicType.any, param2.type || BasicType.any, false);
+                                if (newType !== param1.type) paramChanged = true;
+                                params[i] = new VariableDefineItem(param1.name,
+                                    newType,
+                                    param1.initial);
+                            } else {
+                                break _fail;
+                            }
+                        }
+                    }
+
+                    let returType = type1.returnType;
+                    if (returType !== type2.returnType) {
+                        if (paramChanged) break _fail;
+                        returType = Type.smartOrOnce(type1.returnType, type1.returnType, false);
+                    }
+                    return unique.make(FunctionType, type1.returnType, paramChanged ? params : params1);
+                }
+            }
+            if (type1 === type2) return type1;
+            if (noMakeOr) return null;
+            return type1.or(type2);
+        }
+
+        static asName(name:string):TypeName {
             return new TypeName(name);
         }
         abstract toString():string;
@@ -1389,11 +1621,13 @@ export namespace tsw {
             return cls;
         }
 
-        addFunctionDecl(name:Name|Property, params:DefineItem[], returnType:Type|null, isStatic:boolean):void{
+        addFunctionDecl(name:Name|Property, params:DefineItem[], returnType:Type|null, isStatic:boolean, templates?:TemplateDecl):void{
             if (!(name instanceof Property)) {
                 name = name.toProperty();
             }
-            this.write(new MethodDecl(null, isStatic, name, params, returnType));
+            const func = new MethodDecl(null, isStatic, name, params, returnType);
+            if (templates != null) func.templates = templates;
+            this.write(func);
         }
         addVariable(name:Name|Property, type:Type|null, isStatic:boolean, isReadOnly:boolean, initial?:Value|null):void {
             if (!(name instanceof Property)) {
@@ -1482,6 +1716,9 @@ export namespace tsw {
         toName():Name {
             return this.toProperty().toName().value;
         }
+        getNameOrThrow(): string {
+            return this.name;
+        }
     }
     export class BasicType extends TypeName {
         public static readonly number = new BasicType('number');
@@ -1492,6 +1729,7 @@ export namespace tsw {
         public static readonly unknown = new BasicType('unknown');
         public static readonly any = new BasicType('any');
         public static readonly never = new BasicType('never');
+        public static readonly undefined = new BasicType('undefined');
     }
     export abstract class Property extends Item {
         abstract toName():NamePair;
@@ -1500,6 +1738,9 @@ export namespace tsw {
         abstract toKeyValue():Value;
         abstract toStringWithoutDot():string;
         abstract toString():string;
+        getNameOrThrow(): string {
+            throw Error(`${this} does not have name`);
+        }
     }
     export class BracketProperty extends Property {
         constructor(public value:Value) {
@@ -1552,6 +1793,9 @@ export namespace tsw {
         toStringWithoutDot():string {
             return this.name;
         }
+        getNameOrThrow(): string {
+            throw this.name;
+        }
     }
     export class NumberProperty extends Property {
         constructor(public number:number) {
@@ -1581,6 +1825,27 @@ export namespace tsw {
             super();
         }
 
+        *all():IterableIterator<Type> {
+            yield * super.all();
+            yield * this.component.all();
+        }
+        replaceAll(from:Type, to:Type):Type {
+            if (this === from) return to;
+            const type = this.component.replaceAll(from, to);
+            if (this.component === type) {
+                return this;
+            }
+            return unique.make(ArrayType, type);
+        }
+        merge(other:Type, info:MergeInfo):Type|null {
+            if (this === other) return this;
+            if (other instanceof ArrayType) {
+                const res = this.component.merge(other.component, info);
+                if (res !== null) return unique.make(ArrayType, res);
+            }
+            return super.merge(other, info);
+        }
+
         writeTo(os:LineWriter):void {
             this.component.wrappedWriteTo(os, Precedence.TypeArray);
             os.write('[]');
@@ -1598,6 +1863,43 @@ export namespace tsw {
             super();
         }
 
+        *all():IterableIterator<Type> {
+            yield * super.all();
+            for (const item of this.fields) {
+                yield * item.all();
+            }
+        }
+        replaceAll(from:Type, to:Type):Type {
+            if (this === from) return to;
+            const fields = this.fields.map(type=>type.replaceAll(from, to));
+            if (arrayEquals(this.fields, fields)) {
+                return this;
+            }
+            return unique.make(Tuple, fields);
+        }
+        merge(other:Type, info:MergeInfo):Type|null {
+            if (this === other) return this;
+            if (other instanceof Tuple) {
+                const n = this.fields.length;
+                if (n === other.fields.length) {
+                    let changed = false;
+                    const fields:Type[] = [];
+                    for (let i=0;i<n;i++) {
+                        const type1 = this.fields[i];
+                        const type2 = other.fields[i];
+                        const res = type1.merge(type2, info);
+                        if (res === null) {
+                            return super.merge(other, info);
+                        }
+                        if (res !== type1) changed = true;
+                        fields.push(res);
+                    }
+                    return changed ? unique.make(Tuple, fields) : this;
+                }
+            }
+            return super.merge(other, info);
+        }
+
         writeTo(os:LineWriter):void {
             os.write('[');
             for (const value of os.join(this.fields, ',')) {
@@ -1613,6 +1915,23 @@ export namespace tsw {
     export class ParamDef extends Item {
         constructor(public params:DefineItem[]) {
             super();
+        }
+
+        merge(other:ParamDef, info:MergeInfo):DefineItem[]|null {
+            const n = this.params.length;
+            if (n !== other.params.length) return null;
+
+            let changed = false;
+            const restypes:DefineItem[] = [];
+            for (let i=0;i<n;i++) {
+                const param1 = this.params[i];
+                const param2 = other.params[i];
+                const res = param1.merge(param2, info);
+                if (res === null) return null;
+                if (res !== param1) changed = true;
+                restypes.push(res);
+            }
+            return changed ? restypes : this.params;
         }
 
         paramsCloneToJS(ctx:JsCloningContext):DefineItem[] {
@@ -1775,6 +2094,9 @@ export namespace tsw {
         blockedWriteTo(os:LineWriter):void {
             os.write('function ');
             this.name.writeTo(os);
+            if (this.templates !== null) {
+                this.templates.writeTo(os);
+            }
             this.params.writeTo(os);
             if (this.returnType !== null) {
                 os.write(':');
@@ -2033,8 +2355,36 @@ export namespace tsw {
     }
 
     export class TemplateType extends Type {
-        constructor (public type:Type, public params:Type[]) {
+        constructor (public readonly type:Type, public readonly params:Type[]) {
             super();
+        }
+
+        *all():IterableIterator<Type> {
+            yield * super.all();
+            yield * this.type.all();
+            for (const item of this.params) {
+                yield * item.all();
+            }
+        }
+        replaceAll(from:Type, to:Type):Type {
+            if (this === from) return to;
+            const type = this.type.replaceAll(from, to);
+            const params = this.params.map(type=>type.replaceAll(from, to));
+            if (this.type === type && arrayEquals(this.params, params)) {
+                return this;
+            }
+            return unique.make(TemplateType, type, params);
+        }
+        merge(other:Type, info:MergeInfo):Type|null {
+            if (this === other) return this;
+            if (other instanceof TemplateType) {
+                const base = this.type;
+                if (base === other.type) {
+                    const res = Type.merge(this.params, other.params, info);
+                    if (res !== null) return unique.make(TemplateType, base, res);
+                }
+            }
+            return super.merge(other, info);
         }
 
         writeTo(os:LineWriter):void {
@@ -2053,10 +2403,40 @@ export namespace tsw {
     }
 
     export class FunctionType extends Type {
-        public params:ParamDef;
-        constructor(public returnType:Type, params:DefineItem[]) {
+        public readonly params:ParamDef;
+        constructor(public readonly returnType:Type, params:DefineItem[]) {
             super();
             this.params = new ParamDef(params);
+        }
+
+        *all():IterableIterator<Type> {
+            yield * super.all();
+            yield * this.returnType.all();
+            for (const item of this.params.params) {
+                yield * item.all();
+            }
+        }
+        replaceAll(from:Type, to:Type):Type {
+            if (this === from) return to;
+            const returnType = this.returnType.replaceAll(from, to);
+            const params = this.params.params.map(type=>type.replaceAll(from, to));
+            if (this.returnType === returnType && arrayEquals(this.params.params, params)) {
+                return this;
+            }
+            return unique.make(FunctionType, returnType, params);
+        }
+        merge(other:Type, info:MergeInfo):Type|null {
+            if (this === other) return this;
+            if (other instanceof FunctionType) {
+                const returnType = this.returnType.merge(other.returnType, info);
+                if (returnType !== null) {
+                    const params = this.params.merge(other.params, info);
+                    if (params !== null) {
+                        return unique.make(FunctionType, returnType, params);
+                    }
+                }
+            }
+            return super.merge(other, info);
         }
 
         writeTo(os:LineWriter):void {
@@ -2072,8 +2452,9 @@ export namespace tsw {
     Object.defineProperty(FunctionType.prototype, 'precedence', {value: Precedence.FunctionType});
 
     export abstract class TypeUnion extends Type {
-        constructor(public types:Type[]){
+        constructor(public readonly types:readonly Type[]){
             super();
+            if (types.length <= 1) throw Error(`${this.constructor.name} invalid length`);
         }
     }
 
@@ -2087,7 +2468,24 @@ export namespace tsw {
                     out.push(other);
                 }
             }
-            return new TypeOr(out);
+            return unique.make(TypeOr, out);
+        }
+        remove(target:Type):Type {
+            const targetIdx = this.types.indexOf(target);
+            if (targetIdx === -1) {
+                return this;
+            } else {
+                const types = this.types.slice();
+                types.splice(targetIdx, 1);
+                switch (types.length) {
+                case 0:
+                    return BasicType.never;
+                case 1:
+                    return types[0];
+                default:
+                    return unique.make(tsw.TypeOr, types);
+                }
+            }
         }
         writeTo(os:LineWriter):void {
             for (const type of os.join(this.types, '|')) {
@@ -2097,14 +2495,8 @@ export namespace tsw {
         toString():string {
             return this.types.join('|');
         }
-        notNull():TypeOr {
-            const idx = this.types.indexOf(tsw.BasicType.null);
-            if (idx !== -1) {
-                const cloned = this.types.slice();
-                cloned.splice(idx, 1);
-                return new tsw.TypeOr(cloned);
-            }
-            return this;
+        notNull():Type {
+            return this.remove(tsw.BasicType.null);
         }
     }
     Object.defineProperty(TypeOr.prototype, 'precedence', {value: Precedence.TypeOr});
@@ -2119,7 +2511,7 @@ export namespace tsw {
                     out.push(other);
                 }
             }
-            return new TypeAnd(out);
+            return unique.make(TypeAnd, out);
         }
         writeTo(os:LineWriter):void {
             for (const type of os.join(this.types, '&')) {
@@ -2404,28 +2796,35 @@ export namespace tsw {
             }
         }
 
-        import(name:string):NamePair {
+        import(scope:ScopeMethod, name:string):NamePair {
             let imported = this.imports.get(name);
             if (imported != null) return imported;
-            const importName = this.list.makeName(name);
+            const importName = this.list.makeName(scope, name);
             imported = tsw.NamePair.create(importName);
             this.imports.set(name, imported);
             return imported;
         }
 
-        importDirect():NamePair {
+        importDirect(scope:ScopeMethod):NamePair {
             if (this.direct.length !== 0) {
                 for (const direct of this.direct) {
-                    if (this.list.scope.canAccessGlobalName(direct.value.name)) {
+                    if (!scope.existName(direct.value.name)) {
                         return direct;
                     }
                 }
             }
             const name = path.basename(this.path);
-            const varname = this.list.makeName(name);
+            const varname = this.list.makeName(scope, name);
             const direct = tsw.NamePair.create(varname);
             this.direct.push(direct);
             return direct;
+        }
+
+        isImportDirect(target:Type):boolean {
+            for (const item of this.direct) {
+                if (item.type === target) return true;
+            }
+            return false;
         }
 
         toTsw(imports:Imports[] = []):Imports[] {
@@ -2445,10 +2844,6 @@ export namespace tsw {
 
     export class ImportList extends UnusedName {
         public readonly imports = new Map<string, ImportTarget>();
-
-        constructor(scope?:UnusedName.Scope) {
-            super(scope);
-        }
 
         from(fromPath:string):ImportTarget {
             let target = this.imports.get(fromPath);
@@ -2477,6 +2872,17 @@ export namespace tsw {
             return imports;
         }
 
+    }
+
+    export class MergeInfo {
+        public static readonly wildcard = new TypeName('T');
+
+        public wildcardFixed = false;
+
+        constructor(
+            public target1:Type|null,
+            public target2:Type|null) {
+        }
     }
 
 }

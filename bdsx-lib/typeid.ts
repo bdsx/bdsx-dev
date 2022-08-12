@@ -1,4 +1,4 @@
-import { dnf } from "./dnf";
+import { dnf } from "./dnf/dnf";
 import { typeid_t, type_id } from "./minecraft";
 import { NativeClass } from "./nativeclass";
 import { Type } from "./nativetype";

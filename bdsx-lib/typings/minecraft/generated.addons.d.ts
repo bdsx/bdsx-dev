@@ -98,6 +98,7 @@ interface BlockIdMap {
     "minecraft:chorus_flower":void;
     "minecraft:chorus_plant":void;
     "minecraft:clay":void;
+    "minecraft:client_request_placeholder_block":void;
     "minecraft:coal_block":void;
     "minecraft:coal_ore":void;
     "minecraft:cobbled_deepslate":void;
@@ -452,6 +453,8 @@ interface BlockIdMap {
     "minecraft:mossy_stone_brick_stairs":void;
     "minecraft:movingBlock":void;
     "minecraft:mycelium":void;
+    "minecraft:mysterious_frame":void;
+    "minecraft:mysterious_frame_slot":void;
     "minecraft:nether_brick":void;
     "minecraft:nether_brick_fence":void;
     "minecraft:nether_brick_stairs":void;
@@ -557,9 +560,9 @@ interface BlockIdMap {
     "minecraft:sculk_sensor":void;
     "minecraft:sculk_shrieker":void;
     "minecraft:sculk_vein":void;
+    "minecraft:seaLantern":void;
     "minecraft:sea_pickle":void;
     "minecraft:seagrass":void;
-    "minecraft:seaLantern":void;
     "minecraft:shroomlight":void;
     "minecraft:shulker_box":void;
     "minecraft:silver_glazed_terracotta":void;
@@ -597,8 +600,8 @@ interface BlockIdMap {
     "minecraft:stained_hardened_clay":void;
     "minecraft:standing_banner":void;
     "minecraft:standing_sign":void;
-    "minecraft:sticky_piston":void;
     "minecraft:stickyPistonArmCollision":void;
+    "minecraft:sticky_piston":void;
     "minecraft:stone":void;
     "minecraft:stone_brick_stairs":void;
     "minecraft:stone_button":void;
@@ -1012,6 +1015,7 @@ interface ItemIdMap {
     "minecraft:chorus_plant":void;
     "minecraft:clay":void;
     "minecraft:clay_ball":void;
+    "minecraft:client_request_placeholder_block":void;
     "minecraft:clock":void;
     "minecraft:coal":void;
     "minecraft:coal_block":void;
@@ -1522,6 +1526,7 @@ interface ItemIdMap {
     "minecraft:music_disc_far":void;
     "minecraft:music_disc_mall":void;
     "minecraft:music_disc_mellohi":void;
+    "minecraft:music_disc_otherside":void;
     "minecraft:music_disc_pigstep":void;
     "minecraft:music_disc_stal":void;
     "minecraft:music_disc_strad":void;
@@ -1529,6 +1534,8 @@ interface ItemIdMap {
     "minecraft:music_disc_ward":void;
     "minecraft:mutton":void;
     "minecraft:mycelium":void;
+    "minecraft:mysterious_frame":void;
+    "minecraft:mysterious_frame_slot":void;
     "minecraft:name_tag":void;
     "minecraft:nautilus_shell":void;
     "minecraft:nether_brick":void;

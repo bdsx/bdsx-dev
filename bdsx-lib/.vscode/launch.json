@@ -38,11 +38,11 @@
             "runtimeExecutable": "${workspaceFolder}/../bdsx/bedrock_server/bedrock_server.exe",
             "type": "legacy-node",
             "request": "launch",
-            "name": "Launch Assembly Tests",
+            "name": "Launch Tools Tests",
             "skipFiles": [
                 "<node_internals>/**"
             ],
-            "args": ["./tools/bundlerun.js", "./tools/asm/asmtestrun.ts"],
+            "args": ["./tools/bundlerun.js", "./tools/test/tools.test.ts"],
             "console": "integratedTerminal"
         },
         {
@@ -57,8 +57,7 @@
             "console": "integratedTerminal"
         },
         {
-            "runtimeExecutable": "${workspaceFolder}/../bdsx/bedrock_server/bedrock_server.exe",
-            "type": "legacy-node",
+            "type": "node",
             "request": "launch",
             "name": "Launch PDB Parser",
             "args": ["./tools/bundlerun.js", "./tools/pdbparser/index.ts"],

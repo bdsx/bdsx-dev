@@ -139,6 +139,7 @@ export class JsonValue extends NativeClass {
         return this.value()+'';
     }
 }
+
 const jsonValueCtorWithType = makefunc.js(proc2['??0Value@Json@@QEAA@W4ValueType@1@@Z'], JsonValue, null, JsonValue, int32_t);
 const jsonValueCtorWithString = makefunc.js(proc2['??0Value@Json@@QEAA@AEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z'], JsonValue, null, JsonValue, CxxString);
 const jsonValueGetByInt = makefunc.js(proc2['??AValue@Json@@QEAAAEAV01@H@Z'], JsonValue, null, JsonValue, int32_t);

@@ -2,7 +2,7 @@ import { events } from ".";
 import { CANCEL } from "../../common";
 import { hook } from "../../hook";
 import { Actor, BuildPlatform, CompletedUsingItemPacket, ConnectionRequest, Container, ExtendedCertificate, ItemActor, ItemStack, LoginPacket, MinecraftPacketIds, NetworkHandler, Player as PlayerRaw } from "../../minecraft";
-import { removeNetworkIdentifierReference } from "../../minecraft_impl/networkidentifier";
+import { removeNetworkIdentifierReference } from "../../minecraft/ext/networkidentifier";
 import { int32_t } from "../../nativetype";
 import { _tickCallback } from "../../util";
 import { Entity } from "../entity";

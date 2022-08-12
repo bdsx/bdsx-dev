@@ -590,21 +590,21 @@ export abstract class CxxMap<K, V> extends NativeClass {
         const nodetype = CxxTreeNode.make(comptype);
         const key_comp = CxxLess.make(k);
         return Singleton.newInstance(CxxMap, comptype, ()=>{
-            @nativeClass(0x10)
-            class CxxMapImpl extends CxxMap<K, V> {
-                static componentType:CxxPairType<K, V> = comptype;
-                static key_comp:CxxLess<K> = key_comp;
-                componentType:CxxPairType<K, V>;
-                key_comp:CxxLess<K>;
-                nodeType:CxxTreeNodeType<CxxPair<K, V>>;
-            }
-            CxxMapImpl.prototype.componentType = comptype;
-            CxxMapImpl.prototype.nodeType = nodetype;
-            CxxMapImpl.prototype.key_comp = key_comp;
-            Object.defineProperty(CxxMapImpl, 'name', {
-                value:getMapName(comptype)
-            });
-            return CxxMapImpl;
+            const name = getMapName(comptype);
+            const cls = {
+                [name]:class extends CxxMap<K, V> {
+                    static componentType:CxxPairType<K, V> = comptype;
+                    static key_comp:CxxLess<K> = key_comp;
+                    componentType:CxxPairType<K, V>;
+                    key_comp:CxxLess<K>;
+                    nodeType:CxxTreeNodeType<CxxPair<K, V>>;
+                }
+            }[name];
+            cls.define({}, 0x10);
+            cls.prototype.componentType = comptype;
+            cls.prototype.nodeType = nodetype;
+            cls.prototype.key_comp = key_comp;
+            return cls;
         });
     }
 

@@ -1,5 +1,6 @@
 import { OperationSize, X64Assembler } from "../assembler";
 import { tsw } from "./lib/tswriter";
+import { ScopeMethod } from "./lib/unusedname";
 import { StringLineWriter } from "./writer/linewriter";
 
 export function asmToScript(asm:X64Assembler, bdsxLibPath:string, exportName?:string|null, generator?:string):{js:string, dts:string} {
@@ -25,13 +26,13 @@ export function asmToScript(asm:X64Assembler, bdsxLibPath:string, exportName?:st
     js.writeln(`const { asm } = require('${bdsxLibPath}/assembler');`);
     js.writeln(`require('${bdsxLibPath}/codealloc');`);
 
-    const importList = new tsw.ImportList({
+    const scope:ScopeMethod = {
         existName(name){ return name in labels; },
-        canAccessGlobalName(name){ return name in labels; },
-    });
+    };
+    const importList = new tsw.ImportList;
     const core = importList.from(`${bdsxLibPath}/core`);
-    const VoidPointer = core.import('VoidPointer');
-    const StaticPointer = core.import('StaticPointer');
+    const VoidPointer = core.import(scope, 'VoidPointer');
+    const StaticPointer = core.import(scope, 'StaticPointer');
 
     for (const importLine of core.toTsw()) {
         importLine.blockedWriteTo(dts);

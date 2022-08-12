@@ -1,8 +1,5 @@
 import { Actor, CommandPermissionLevel, NetworkIdentifier, Packet, Player as PlayerRaw, ServerPlayer, TextPacket } from "../minecraft";
 import { Entity } from "./entity";
-import { events } from "./events";
-import { system } from "./system";
-import colors = require('colors');
 import { Inventory } from "./inventory";
 
 interface PlayerComponentClass {
@@ -44,9 +41,6 @@ interface NetworkIdentifierX extends NetworkIdentifier {
 }
 
 export class Player extends Entity {
-    /** it can be undefined if the player entity is not created */
-    public entity:IEntity;
-
     protected actor:ServerPlayer|null;
     private _inv:Inventory|null;
 
@@ -145,9 +139,6 @@ export class Player extends Entity {
     static fromXuid(xuid:string):Player|null {
         return xuidmap.get(xuid) || null;
     }
-    static fromEntity(entity:IEntity):Player|null {
-        return entityidmap.get(entity.id) || null;
-    }
     static fromNetworkIdentifier(networkIdentifier:NetworkIdentifierX):Player|null {
         return networkIdentifier[playerKey] || null;
     }
@@ -157,21 +148,6 @@ export class Player extends Entity {
     }
 }
 type PlayerNew = Player;
-
-events.serverOpen.on(()=>{
-    system.listenForEvent('minecraft:entity_created', ev=>{
-        const entity = ev.data.entity;
-        if (entity.__identifier__ !== 'minecraft:player') return;
-        const nameable = system.getComponent(entity, 'minecraft:nameable');
-        if (nameable === null) return;
-        const player = namemap.get(nameable.data.name);
-        if (player == null) {
-            console.error(colors.red(`player not found on entity_created (name=${nameable.data.name})`));
-            return;
-        }
-        player.entity = entity;
-    });
-});
 
 Entity.registerMapper(PlayerRaw, actor=>{
     const name = actor.getNameTag();

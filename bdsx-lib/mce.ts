@@ -1,5 +1,5 @@
 import { bin } from "./bin";
-import { dnf } from "./dnf";
+import { dnf } from "./dnf/dnf";
 import { Crypto } from "./minecraft";
 import { MantleClass, nativeClass, NativeClass, nativeField } from "./nativeclass";
 import { bin128_t, bin64_t, uint16_t, uint32_t, uint64_as_float_t, uint8_t } from "./nativetype";

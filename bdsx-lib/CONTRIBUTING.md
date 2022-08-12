@@ -14,9 +14,13 @@ Or, Please write where offsets come from.
 About Minecraft APIs, To make it easy to guess for everyone, use the known official name of Minecraft if it's possible.
 
 ### 4. Choice shorter and simpler for external APIs
-use EntityCreate instead of EntityCreated
-use `get name()` instead of `getName()`
-destruct all destructable instances at `process.nextTick()` for external APIs
+use EntityCreate instead of EntityCreated.  
+use `get name()` instead of `getName()`.  
+destruct all destructable instances at `process.nextTick()` for external APIs.  
+If it's almost not null, Please use it as not null.  
+
+### 5. Please don't edit or add JS files directly
+bdsx is using a few JS files for deprecated files or compiled results.
 
 ## Tips
 * `./bdsx` directory is using ESLint for the code formatting. it would be better to use ESLint Extension for VSCode.

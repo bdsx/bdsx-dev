@@ -1,13 +1,12 @@
 import { abstract } from "../common";
+import { hook } from "../hook";
 import { MantleClass, nativeClass, NativeClass, nativeField } from "../nativeclass";
-import { CxxString, int32_t, Type, uint32_t, void_t } from "../nativetype";
+import { CxxString, int32_t, Type, uint32_t } from "../nativetype";
 import { SharedPtr } from "../sharedpointer";
 import { NetworkIdentifier } from "./networkidentifier";
 import { MinecraftPacketIds } from "./packetids";
-import { procHacker } from "./proc";
 import { BinaryStream } from "./stream";
 import minecraft = require('../minecraft');
-import { hook } from "../hook";
 
 /** @deprecated */
 export const PacketReadResult = uint32_t.extends({

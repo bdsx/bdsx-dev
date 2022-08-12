@@ -78,7 +78,7 @@ function onPacketBefore(result:ExtendedStreamReadResult, rbp:OnPacketRBP, packet
         if (target !== null && !target.isEmpty()) {
             const packet = rbp.packet.p!;
             const ni = nethook.lastSender;
-            const TypedPacket = PacketIdToType[packetId] || Packet;
+            const TypedPacket = PacketIdToType[packetId as any] || Packet;
             const typedPacket = packet.as(TypedPacket);
             for (const listener of target.allListeners()) {
                 try {
@@ -105,7 +105,7 @@ function onPacketAfter(rbp:OnPacketRBP):void {
         const target = events.packetEvent(events.PacketEventType.After, packetId) as Event<nethook.AfterListener<MinecraftPacketIds>>;
         if (target !== null && !target.isEmpty()) {
             const ni = nethook.lastSender;
-            const TypedPacket = PacketIdToType[packetId] || Packet;
+            const TypedPacket = PacketIdToType[packetId as any] || Packet;
             const typedPacket = packet.as(TypedPacket);
             for (const listener of target.allListeners()) {
                 try {

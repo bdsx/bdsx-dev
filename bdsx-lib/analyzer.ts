@@ -1,10 +1,9 @@
-import { NativePointer, pdb, VoidPointer } from "./core";
+import { NativePointer, pdb, VoidPointer } from "../core";
 
 let analyzeMap:Map<string, string>|undefined;
 let symbols:Record<string, NativePointer>|null = null;
 
-export namespace analyzer
-{
+export namespace analyzer {
     export function loadMap():void{
         if (analyzeMap) return;
         analyzeMap = new Map<string, string>();

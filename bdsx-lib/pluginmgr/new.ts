@@ -17,19 +17,7 @@ if (fs.existsSync(targetPath)) {
     process.exit(0);
 }
 
-function mkdirRecursiveSync(dirpath:string):void {
-    try {
-        fs.mkdirSync(dirpath);
-        return;
-    } catch (err) {
-        if (err.code === 'EEXIST') return;
-        if (['EACCES', 'EPERM', 'EISDIR'].indexOf(err.code) !== -1) throw err;
-    }
-    mkdirRecursiveSync(path.dirname(dirpath));
-    fs.mkdirSync(dirpath);
-}
-
-mkdirRecursiveSync(targetPath);
+fsutil.mkdirRecursiveSync(targetPath);
 const basename = path.basename(targetPath);
 const targetdir = targetPath+path.sep;
 
