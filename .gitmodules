@@ -1,7 +1,7 @@
 [submodule "bdsx"]
 	path = bdsx
 	url = https://github.com/bdsx/bdsx.git
-	branch = master
+	branch = next
 [submodule "bdsx-core"]
 	path = bdsx-core
 	url = https://github.com/bdsx/bdsx-core.git
@@ -10,6 +10,9 @@
 	path = ken
 	url = https://github.com/karikera/ken.git
 	branch = master
+[submodule "client-side-tests"]
+	path = client-side-tests
+	url = https://github.com/bdsx/client-side-tests
 [submodule "if-tsb"]
 	path = if-tsb
 	url = https://github.com/bdsx/if-tsb.git
